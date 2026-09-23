@@ -142,6 +142,38 @@ async def test_admin_user(db_session: AsyncSession) -> dict:
 
 
 @pytest_asyncio.fixture
+async def test_agent_user(db_session: AsyncSession) -> dict:
+    """Fixture creating an active SUPPORT_AGENT user."""
+    unique_id = uuid.uuid4().hex[:8]
+    email = f"agent_{unique_id}@example.com"
+    raw_password = "AgentPassword123!"
+    user = User(
+        email=email,
+        hashed_password=hash_password(raw_password),
+        role=UserRole.SUPPORT_AGENT,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    token = create_access_token(
+        user_id=str(user.id),
+        secret_key=settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+        expires_minutes=60,
+    )
+
+    return {
+        "user": user,
+        "email": email,
+        "raw_password": raw_password,
+        "token": token,
+        "headers": {"Authorization": f"Bearer {token}"},
+    }
+
+
+@pytest_asyncio.fixture
 async def test_inactive_user(db_session: AsyncSession) -> dict:
     """Fixture creating an inactive CUSTOMER user."""
     unique_id = uuid.uuid4().hex[:8]

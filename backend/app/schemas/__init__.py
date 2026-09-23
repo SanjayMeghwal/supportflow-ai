@@ -7,6 +7,15 @@ from backend.app.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
+from backend.app.schemas.ticket import (
+    TicketAssignRequest,
+    TicketCreateRequest,
+    TicketListResponse,
+    TicketMessageCreateRequest,
+    TicketMessageResponse,
+    TicketResponse,
+    TicketUpdateRequest,
+)
 
 __all__ = [
     "RegisterRequest",
@@ -14,4 +23,11 @@ __all__ = [
     "TokenResponse",
     "UserResponse",
     "MeResponse",
+    "TicketCreateRequest",
+    "TicketUpdateRequest",
+    "TicketAssignRequest",
+    "TicketMessageCreateRequest",
+    "TicketResponse",
+    "TicketListResponse",
+    "TicketMessageResponse",
 ]
