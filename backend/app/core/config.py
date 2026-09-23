@@ -28,6 +28,18 @@ class Settings(BaseSettings):
     DATABASE_URL: str = (
         "postgresql+asyncpg://postgres:postgres@localhost:5434/supportflow_db"
     )
+    TEST_DATABASE_URL: Optional[str] = None
+
+    @property
+    def async_test_database_url(self) -> str:
+        """Isolated database URL for automated testing.
+
+        Ensures test suites never connect to or mutate the development database.
+        Defaults to 'supportflow_test_db' on the same PostgreSQL host/port.
+        """
+        if self.TEST_DATABASE_URL:
+            return self.TEST_DATABASE_URL
+        return self.DATABASE_URL.rsplit("/", 1)[0] + "/supportflow_test_db"
 
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379/0"
