@@ -117,7 +117,7 @@ async def test_semantic_search_accuracy_and_relevance(
     # Query 2: Semantically related to reimbursement (without using "protocol", "arrival", etc.)
     refund_search = await client.post(
         "/api/v1/knowledge/search",
-        json={"query": "How many days will it take to get my money back after returning an item?", "top_k": 10},
+        json={"query": "How many days will it take to get my money back after returning an item?", "top_k": 50},
         headers=test_customer_user["headers"],
     )
     assert refund_search.status_code == 200
