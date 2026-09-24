@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from backend.app.models.knowledge import DocumentChunk, KnowledgeDocument, SourceType
 from backend.app.services.chunking import RecursiveTextChunker
+from backend.app.services.embedding import EmbeddingService, get_embedding_service
 from backend.app.services.extractors import ExtractionError, detect_source_type, extract_text
 
 
@@ -30,11 +31,13 @@ class KnowledgeService:
         self,
         chunk_size: int = 500,
         chunk_overlap: int = 50,
+        embedding_service: EmbeddingService | None = None,
     ) -> None:
         self.chunker = RecursiveTextChunker(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
         )
+        self.embedding_service = embedding_service or get_embedding_service()
 
     async def ingest_document(
         self,
@@ -91,7 +94,11 @@ class KnowledgeService:
         if not chunks:
             raise ExtractionError("Document produced 0 text chunks after processing.")
 
-        # 6. Atomic database persistence
+        # 6. Generate vector embeddings for all chunks in batch
+        chunk_texts = [chunk.text for chunk in chunks]
+        embeddings = self.embedding_service.embed_batch(chunk_texts)
+
+        # 7. Atomic database persistence
         document = KnowledgeDocument(
             title=title,
             source_type=resolved_source_type,
@@ -108,9 +115,9 @@ class KnowledgeService:
                 chunk_index=chunk.chunk_index,
                 chunk_text=chunk.text,
                 metadata_json=chunk.metadata,
-                embedding=None,  # Embeddings populated in Phase 7
+                embedding=embeddings[i],
             )
-            for chunk in chunks
+            for i, chunk in enumerate(chunks)
         ]
         db.add_all(db_chunks)
 
@@ -202,3 +209,60 @@ class KnowledgeService:
         await db.delete(doc)
         await db.commit()
         return True
+
+    async def search_similar_chunks(
+        self,
+        db: AsyncSession,
+        *,
+        query: str,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Perform semantic similarity search on knowledge chunks using pgvector cosine distance.
+
+        1. Generates query embedding using local embedding service.
+        2. Computes cosine distance via DocumentChunk.embedding.cosine_distance(query_vector).
+        3. Joins KnowledgeDocument to filter active documents.
+        4. Calculates similarity score = 1.0 - distance.
+        5. Orders by distance ascending (most similar first) and limits to top_k.
+        """
+        if not query or not query.strip():
+            raise ValueError("Query string cannot be empty or whitespace-only.")
+
+        query_embedding = self.embedding_service.embed_text(query.strip())
+
+        distance_expr = DocumentChunk.embedding.cosine_distance(query_embedding)
+        score_expr = (1.0 - distance_expr).label("similarity_score")
+
+        stmt = (
+            select(
+                DocumentChunk,
+                KnowledgeDocument.title.label("document_title"),
+                score_expr,
+            )
+            .join(KnowledgeDocument, DocumentChunk.document_id == KnowledgeDocument.id)
+            .where(
+                KnowledgeDocument.is_active == True,
+                DocumentChunk.embedding.isnot(None),
+            )
+            .order_by(distance_expr.asc())
+            .limit(top_k)
+        )
+
+        result = await db.execute(stmt)
+        rows = result.all()
+
+        search_results: list[dict[str, Any]] = []
+        for chunk, doc_title, score in rows:
+            similarity = round(float(score), 4) if score is not None else 0.0
+            search_results.append({
+                "chunk_id": chunk.id,
+                "document_id": chunk.document_id,
+                "document_title": doc_title,
+                "chunk_index": chunk.chunk_index,
+                "content": chunk.chunk_text,
+                "score": similarity,
+                "metadata": chunk.metadata_json or {},
+            })
+
+        return search_results
+
