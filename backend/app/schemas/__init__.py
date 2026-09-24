@@ -7,6 +7,15 @@ from backend.app.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
+from backend.app.schemas.knowledge import (
+    DocumentChunkResponse,
+    FAQDocumentCreateRequest,
+    FAQItem,
+    KnowledgeDocumentDetailResponse,
+    KnowledgeDocumentListResponse,
+    KnowledgeDocumentResponse,
+    TextDocumentCreateRequest,
+)
 from backend.app.schemas.ticket import (
     TicketAssignRequest,
     TicketCreateRequest,
@@ -30,4 +39,12 @@ __all__ = [
     "TicketResponse",
     "TicketListResponse",
     "TicketMessageResponse",
+    "TextDocumentCreateRequest",
+    "FAQItem",
+    "FAQDocumentCreateRequest",
+    "DocumentChunkResponse",
+    "KnowledgeDocumentResponse",
+    "KnowledgeDocumentDetailResponse",
+    "KnowledgeDocumentListResponse",
 ]
+
