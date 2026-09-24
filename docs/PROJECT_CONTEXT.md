@@ -24,7 +24,7 @@ Support organizations manage incoming inquiries across chat, email, and portals.
 > 2. Classify intent: `Billing / Refund`.
 > 3. Extract entities: Order identifiers, transaction references, amounts.
 > 4. Evaluate knowledge retrieval requirements (Policy lookup needed: Refund timelines).
-> 5. Query hybrid vector + keyword knowledge index (retrieves authoritative cancellation/refund policy).
+> 5. Query multi-stage hybrid knowledge index (vector + FTS + RRF + cross-encoder reranker).
 > 6. Invoke bounded backend tools to verify order cancellation status and payment gateway records.
 > 7. Synthesize grounded answer strictly citing policy (e.g., "5–7 business days via original payment method").
 > 8. Compute response confidence & grounding evidence score.
