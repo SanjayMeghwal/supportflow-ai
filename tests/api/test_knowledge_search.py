@@ -101,13 +101,14 @@ async def test_semantic_search_accuracy_and_relevance(
     # Query 1: Semantically related to password recovery (without using "authentication", "portal", etc.)
     pw_search = await client.post(
         "/api/v1/knowledge/search",
-        json={"query": "I lost my login pass and can't access my account", "top_k": 5},
+        json={"query": "I lost my login pass and can't access my account", "top_k": 50},
         headers=test_customer_user["headers"],
     )
     assert pw_search.status_code == 200
     pw_data = pw_search.json()
     assert pw_data["total_results"] > 0
-    # Between the two test documents, Password document must rank higher than Refund document
+    # Among our two test documents, the Password document must rank higher than the Refund document.
+    # Using top_k=50 (max) to ensure both test docs appear regardless of other docs in the shared DB.
     pw_matches = [r for r in pw_data["results"] if r["document_id"] in (pw_doc_id, refund_doc_id)]
     assert len(pw_matches) >= 1
     assert pw_matches[0]["document_id"] == pw_doc_id
