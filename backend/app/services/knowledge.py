@@ -12,9 +12,10 @@ from backend.app.services.chunking import RecursiveTextChunker
 from backend.app.services.embedding import EmbeddingService, get_embedding_service
 from backend.app.services.extractors import ExtractionError, detect_source_type, extract_text
 from backend.app.services.ranking import RankedCandidate, reciprocal_rank_fusion
+from backend.app.services.reranker import RerankerService, get_reranker_service
 
 # ---------------------------------------------------------------------------
-# Candidate pool constants for hybrid retrieval
+# Candidate pool constants for hybrid retrieval and cross-encoder reranking
 # ---------------------------------------------------------------------------
 
 #: Multiplier applied to top_k to form the candidate pool retrieved from each
@@ -27,6 +28,14 @@ _CANDIDATE_MULTIPLIER: int = 4
 #: Hard upper bound on candidates fetched per retrieval system, regardless of
 #: top_k.  Prevents unbounded database result sets on large top_k values.
 _MAX_CANDIDATES_PER_SYSTEM: int = 100
+
+#: Multiplier applied to top_k to form the candidate pool retrieved from
+#: hybrid search before cross-encoder reranking.
+_RERANK_CANDIDATE_MULTIPLIER: int = 4
+
+#: Hard upper bound on candidates passed to the cross-encoder reranker.
+#: Bounds computationally intensive joint self-attention inference.
+_MAX_RERANK_CANDIDATES: int = 50
 
 
 class DuplicateDocumentError(Exception):
@@ -48,12 +57,14 @@ class KnowledgeService:
         chunk_size: int = 500,
         chunk_overlap: int = 50,
         embedding_service: EmbeddingService | None = None,
+        reranker_service: RerankerService | None = None,
     ) -> None:
         self.chunker = RecursiveTextChunker(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
         )
         self.embedding_service = embedding_service or get_embedding_service()
+        self.reranker_service = reranker_service or get_reranker_service()
 
     async def ingest_document(
         self,
@@ -488,4 +499,53 @@ class KnowledgeService:
             }
             for r in fused
         ]
+
+    async def search_reranked(
+        self,
+        db: AsyncSession,
+        *,
+        query: str,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Perform hybrid search followed by local cross-encoder reranking.
+
+        Two-stage retrieval pipeline:
+        1. Retrieval stage: Hybrid search (vector + FTS via RRF) fetches a bounded
+           candidate pool: min(top_k * 4, 50).
+        2. Reranking stage: The local Cross-Encoder (ms-marco-MiniLM-L-6-v2) scores
+           each (query, chunk_content) pair via full cross-attention.
+        3. Returns top_k results ordered by cross-encoder relevance score, preserving
+           vector_rank, fts_rank, and rrf_score metadata.
+
+        Returns
+        -------
+        list[dict]
+            Up to ``top_k`` results. Each result exposes:
+            chunk_id, document_id, document_title, chunk_index, content,
+            score (rerank_score), rerank_score, rrf_score, vector_rank, fts_rank, metadata.
+        """
+        if not query or not query.strip():
+            raise ValueError("Query string cannot be empty or whitespace-only.")
+
+        candidate_limit = min(top_k * _RERANK_CANDIDATE_MULTIPLIER, _MAX_RERANK_CANDIDATES)
+
+        # 1. Retrieve hybrid candidates up to candidate_limit
+        hybrid_candidates = await self.search_hybrid(
+            db=db,
+            query=query.strip(),
+            top_k=candidate_limit,
+        )
+
+        if not hybrid_candidates:
+            return []
+
+        # 2. Score and sort candidates using the cross-encoder
+        reranked_results = self.reranker_service.rerank(
+            query=query.strip(),
+            candidates=hybrid_candidates,
+            top_k=top_k,
+        )
+
+        return reranked_results
+
 

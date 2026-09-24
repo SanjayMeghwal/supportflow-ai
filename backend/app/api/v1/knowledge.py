@@ -382,7 +382,9 @@ async def search_knowledge(
     - ``full_text`` — PostgreSQL Full-Text Search (GIN index, ts_rank).
                       Best for exact terminology and specific keyword queries.
     - ``hybrid``    — RRF fusion of vector + FTS candidate pools.
-                      Best overall quality for mixed natural-language queries.
+                      High quality for mixed natural-language queries.
+    - ``reranked``  — Hybrid retrieval followed by local cross-encoder joint scoring.
+                      Maximum precision for complex contextual queries.
 
     All modes:
     - Filter to active documents only.
@@ -398,6 +400,12 @@ async def search_knowledge(
             )
         elif payload.search_type == SearchType.HYBRID:
             results = await knowledge_service.search_hybrid(
+                db=db,
+                query=payload.query,
+                top_k=payload.top_k,
+            )
+        elif payload.search_type == SearchType.RERANKED:
+            results = await knowledge_service.search_reranked(
                 db=db,
                 query=payload.query,
                 top_k=payload.top_k,
@@ -425,6 +433,8 @@ async def search_knowledge(
             score=r["score"],
             vector_rank=r.get("vector_rank"),
             fts_rank=r.get("fts_rank"),
+            rrf_score=r.get("rrf_score"),
+            rerank_score=r.get("rerank_score"),
             metadata=r["metadata"],
         )
         for r in results

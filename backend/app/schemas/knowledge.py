@@ -18,13 +18,15 @@ class SearchType(str, Enum):
                 websearch_to_tsquery.  Best for exact terminology and keyword
                 queries.
     hybrid    — Combines vector and FTS candidates via Reciprocal Rank Fusion.
-                Generally the highest quality mode for mixed natural-language
-                and technical-term queries.
+                Generally high quality for mixed natural-language queries.
+    reranked  — Retrieves hybrid candidates then applies deep cross-encoder
+                joint attention scoring for state-of-the-art precision.
     """
 
     VECTOR = "vector"
     FULL_TEXT = "full_text"
     HYBRID = "hybrid"
+    RERANKED = "reranked"
 
 
 # ---------------------------------------------------------------------------
@@ -181,12 +183,12 @@ class KnowledgeSearchRequest(BaseModel):
         default=SearchType.VECTOR,
         description=(
             "Retrieval mode: 'vector' (dense semantic, default), "
-            "'full_text' (PostgreSQL FTS), or 'hybrid' (RRF fusion)."
+            "'full_text' (PostgreSQL FTS), 'hybrid' (RRF fusion), "
+            "or 'reranked' (cross-encoder reranking over hybrid candidates)."
         ),
     )
 
     @field_validator("query")
-    @classmethod
     def validate_query(cls, v: str) -> str:
         stripped = v.strip()
         if len(stripped) < 2:
@@ -202,10 +204,11 @@ class KnowledgeSearchResultItem(BaseModel):
     - vector:    cosine similarity (higher = more semantically similar)
     - full_text: ts_rank float    (higher = stronger keyword match)
     - hybrid:    RRF score        (higher = stronger combined signal)
+    - reranked:  cross-encoder score (higher = stronger semantic/contextual match)
 
-    ``vector_rank`` and ``fts_rank`` are populated only for hybrid results
+    ``vector_rank`` and ``fts_rank`` are populated for hybrid and reranked results
     and indicate the rank position in each system's candidate list (1=best).
-    They are None when a chunk was not retrieved by that system.
+    ``rrf_score`` and ``rerank_score`` are populated for reranked results.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -217,15 +220,23 @@ class KnowledgeSearchResultItem(BaseModel):
     content: str
     score: float = Field(
         ...,
-        description="Retrieval score (cosine similarity / ts_rank / RRF score depending on search_type).",
+        description="Retrieval score (cosine similarity / ts_rank / RRF score / cross-encoder score depending on search_type).",
     )
     vector_rank: int | None = Field(
         default=None,
-        description="Rank in vector search candidate list (hybrid mode only; None if not retrieved by vector search).",
+        description="Rank in vector search candidate list (hybrid & reranked modes; None if not retrieved by vector search).",
     )
     fts_rank: int | None = Field(
         default=None,
-        description="Rank in FTS candidate list (hybrid mode only; None if not retrieved by FTS).",
+        description="Rank in FTS candidate list (hybrid & reranked modes; None if not retrieved by FTS).",
+    )
+    rrf_score: float | None = Field(
+        default=None,
+        description="RRF fused score prior to reranking (reranked mode only; None in other modes).",
+    )
+    rerank_score: float | None = Field(
+        default=None,
+        description="Cross-encoder relevance score (reranked mode only; None in other modes).",
     )
     metadata: dict[str, Any] = Field(default_factory=dict)
 
