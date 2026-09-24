@@ -17,6 +17,7 @@ from backend.app.schemas.knowledge import (
     KnowledgeSearchRequest,
     KnowledgeSearchResponse,
     KnowledgeSearchResultItem,
+    SearchType,
     TextDocumentCreateRequest,
 )
 from backend.app.schemas.ticket import (
@@ -52,5 +53,6 @@ __all__ = [
     "KnowledgeSearchRequest",
     "KnowledgeSearchResultItem",
     "KnowledgeSearchResponse",
+    "SearchType",
 ]
 

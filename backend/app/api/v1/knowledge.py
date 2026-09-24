@@ -20,6 +20,7 @@ from backend.app.schemas.knowledge import (
     KnowledgeSearchRequest,
     KnowledgeSearchResponse,
     KnowledgeSearchResultItem,
+    SearchType,
     TextDocumentCreateRequest,
 )
 from backend.app.services.extractors import ExtractionError
@@ -362,7 +363,7 @@ async def delete_document(
     "/search",
     response_model=KnowledgeSearchResponse,
     status_code=status.HTTP_200_OK,
-    summary="Semantic vector search across knowledge chunks",
+    summary="Search knowledge chunks (vector, full-text, or hybrid)",
     responses={
         400: {"description": "Invalid query or parameters"},
         401: {"description": "Not authenticated"},
@@ -373,18 +374,41 @@ async def search_knowledge(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> KnowledgeSearchResponse:
-    """Retrieve top-K semantically relevant knowledge chunks via dense vector similarity.
+    """Retrieve top-K relevant knowledge chunks using the requested search mode.
 
-    - Computes query embedding using local sentence-transformer model.
-    - Evaluates pgvector cosine similarity against indexed document chunks.
-    - Filters to active documents and orders results by similarity score descending.
+    search_type options:
+    - ``vector``    (default) — Dense pgvector cosine similarity search.
+                              Backward-compatible with Phase 7 clients.
+    - ``full_text`` — PostgreSQL Full-Text Search (GIN index, ts_rank).
+                      Best for exact terminology and specific keyword queries.
+    - ``hybrid``    — RRF fusion of vector + FTS candidate pools.
+                      Best overall quality for mixed natural-language queries.
+
+    All modes:
+    - Filter to active documents only.
+    - Require a valid authentication token.
+    - Respect the ``top_k`` bound (1–50).
     """
     try:
-        results = await knowledge_service.search_similar_chunks(
-            db=db,
-            query=payload.query,
-            top_k=payload.top_k,
-        )
+        if payload.search_type == SearchType.FULL_TEXT:
+            results = await knowledge_service.search_full_text(
+                db=db,
+                query=payload.query,
+                top_k=payload.top_k,
+            )
+        elif payload.search_type == SearchType.HYBRID:
+            results = await knowledge_service.search_hybrid(
+                db=db,
+                query=payload.query,
+                top_k=payload.top_k,
+            )
+        else:
+            # Default: SearchType.VECTOR — preserves Phase 7 behavior
+            results = await knowledge_service.search_similar_chunks(
+                db=db,
+                query=payload.query,
+                top_k=payload.top_k,
+            )
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -399,6 +423,8 @@ async def search_knowledge(
             chunk_index=r["chunk_index"],
             content=r["content"],
             score=r["score"],
+            vector_rank=r.get("vector_rank"),
+            fts_rank=r.get("fts_rank"),
             metadata=r["metadata"],
         )
         for r in results
@@ -406,7 +432,7 @@ async def search_knowledge(
 
     return KnowledgeSearchResponse(
         query=payload.query,
+        search_type=payload.search_type,
         total_results=len(items),
         results=items,
     )
-

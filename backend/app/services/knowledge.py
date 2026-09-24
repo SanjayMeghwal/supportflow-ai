@@ -3,7 +3,7 @@
 import hashlib
 from typing import Any
 import uuid
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -11,6 +11,22 @@ from backend.app.models.knowledge import DocumentChunk, KnowledgeDocument, Sourc
 from backend.app.services.chunking import RecursiveTextChunker
 from backend.app.services.embedding import EmbeddingService, get_embedding_service
 from backend.app.services.extractors import ExtractionError, detect_source_type, extract_text
+from backend.app.services.ranking import RankedCandidate, reciprocal_rank_fusion
+
+# ---------------------------------------------------------------------------
+# Candidate pool constants for hybrid retrieval
+# ---------------------------------------------------------------------------
+
+#: Multiplier applied to top_k to form the candidate pool retrieved from each
+#: retrieval system before RRF fusion.  A value of 4 means that for a request
+#: of top_k=5, each system fetches up to 20 candidates.  This ensures that
+#: documents appearing at moderate ranks in one system still have a chance to
+#: surface in the final fused list.
+_CANDIDATE_MULTIPLIER: int = 4
+
+#: Hard upper bound on candidates fetched per retrieval system, regardless of
+#: top_k.  Prevents unbounded database result sets on large top_k values.
+_MAX_CANDIDATES_PER_SYSTEM: int = 100
 
 
 class DuplicateDocumentError(Exception):
@@ -265,4 +281,211 @@ class KnowledgeService:
             })
 
         return search_results
+
+    async def search_full_text(
+        self,
+        db: AsyncSession,
+        *,
+        query: str,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Perform PostgreSQL Full-Text Search over knowledge chunk text.
+
+        Uses websearch_to_tsquery for natural-language query parsing:
+        - Handles multi-word queries without operator syntax.
+        - Gracefully degrades on stopword-only queries (returns empty list).
+        - Supports quoted phrases and implicit AND between words.
+
+        Only chunks belonging to active KnowledgeDocuments are searched.
+        ts_rank is computed entirely inside PostgreSQL using the GIN index.
+
+        Returns
+        -------
+        list[dict]
+            Up to ``top_k`` results ordered by descending FTS rank.
+            Each result contains: chunk_id, document_id, document_title,
+            chunk_index, content, score (ts_rank float), metadata.
+        """
+        if not query or not query.strip():
+            raise ValueError("Query string cannot be empty or whitespace-only.")
+
+        cleaned_query = query.strip()
+
+        stmt = text(
+            """
+            SELECT
+                dc.id            AS chunk_id,
+                dc.document_id,
+                kd.title         AS document_title,
+                dc.chunk_index,
+                dc.chunk_text,
+                dc.metadata_json,
+                ts_rank(
+                    to_tsvector('english', dc.chunk_text),
+                    websearch_to_tsquery('english', :query)
+                )                AS fts_rank
+            FROM document_chunks dc
+            JOIN knowledge_documents kd
+                ON dc.document_id = kd.id
+            WHERE
+                kd.is_active = TRUE
+                AND to_tsvector('english', dc.chunk_text)
+                    @@ websearch_to_tsquery('english', :query)
+            ORDER BY fts_rank DESC
+            LIMIT :limit
+            """
+        )
+
+        result = await db.execute(stmt, {"query": cleaned_query, "limit": top_k})
+        rows = result.mappings().all()
+
+        return [
+            {
+                "chunk_id": row["chunk_id"],
+                "document_id": row["document_id"],
+                "document_title": row["document_title"],
+                "chunk_index": row["chunk_index"],
+                "content": row["chunk_text"],
+                "score": round(float(row["fts_rank"]), 6),
+                "metadata": dict(row["metadata_json"]) if row["metadata_json"] else {},
+            }
+            for row in rows
+        ]
+
+    async def search_hybrid(
+        self,
+        db: AsyncSession,
+        *,
+        query: str,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Perform hybrid search combining dense vector and PostgreSQL FTS via RRF.
+
+        Retrieval strategy
+        ------------------
+        1. Compute a candidate pool from each system independently:
+           - Vector candidates = min(top_k * 4, 100)
+           - FTS candidates   = min(top_k * 4, 100)
+        2. Both systems search over identical authorized document space
+           (active documents only).
+        3. Fuse ranked candidate lists using Reciprocal Rank Fusion (k=60).
+        4. Return the top-k fused results ordered by descending RRF score.
+
+        The candidate multiplier ensures that documents with moderate ranks
+        in one system but high ranks in the other can still surface in the
+        final top-k.  Using a bounded pool prevents excessive DB result sets.
+
+        Returns
+        -------
+        list[dict]
+            Up to ``top_k`` results.  Each result exposes:
+            chunk_id, document_id, document_title, chunk_index, content,
+            score (rrf_score), vector_rank, fts_rank, metadata.
+        """
+        if not query or not query.strip():
+            raise ValueError("Query string cannot be empty or whitespace-only.")
+
+        candidate_limit = min(top_k * _CANDIDATE_MULTIPLIER, _MAX_CANDIDATES_PER_SYSTEM)
+
+        # 1. Vector candidate retrieval
+        query_embedding = self.embedding_service.embed_text(query.strip())
+
+        distance_expr = DocumentChunk.embedding.cosine_distance(query_embedding)
+
+        vec_stmt = (
+            select(
+                DocumentChunk,
+                KnowledgeDocument.title.label("document_title"),
+            )
+            .join(KnowledgeDocument, DocumentChunk.document_id == KnowledgeDocument.id)
+            .where(
+                KnowledgeDocument.is_active == True,  # noqa: E712
+                DocumentChunk.embedding.isnot(None),
+            )
+            .order_by(distance_expr.asc())
+            .limit(candidate_limit)
+        )
+
+        vec_result = await db.execute(vec_stmt)
+        vec_rows = vec_result.all()
+
+        vector_candidates: list[RankedCandidate] = [
+            RankedCandidate(
+                chunk_id=str(chunk.id),
+                rank=rank + 1,
+                document_id=str(chunk.document_id),
+                document_title=doc_title,
+                chunk_index=chunk.chunk_index,
+                content=chunk.chunk_text,
+                metadata=chunk.metadata_json or {},
+            )
+            for rank, (chunk, doc_title) in enumerate(vec_rows)
+        ]
+
+        # 2. FTS candidate retrieval
+        fts_stmt = text(
+            """
+            SELECT
+                dc.id            AS chunk_id,
+                dc.document_id,
+                kd.title         AS document_title,
+                dc.chunk_index,
+                dc.chunk_text,
+                dc.metadata_json
+            FROM document_chunks dc
+            JOIN knowledge_documents kd
+                ON dc.document_id = kd.id
+            WHERE
+                kd.is_active = TRUE
+                AND to_tsvector('english', dc.chunk_text)
+                    @@ websearch_to_tsquery('english', :query)
+            ORDER BY
+                ts_rank(
+                    to_tsvector('english', dc.chunk_text),
+                    websearch_to_tsquery('english', :query)
+                ) DESC
+            LIMIT :limit
+            """
+        )
+
+        fts_result = await db.execute(
+            fts_stmt, {"query": query.strip(), "limit": candidate_limit}
+        )
+        fts_rows = fts_result.mappings().all()
+
+        fts_candidates: list[RankedCandidate] = [
+            RankedCandidate(
+                chunk_id=str(row["chunk_id"]),
+                rank=rank + 1,
+                document_id=str(row["document_id"]),
+                document_title=row["document_title"],
+                chunk_index=row["chunk_index"],
+                content=row["chunk_text"],
+                metadata=dict(row["metadata_json"]) if row["metadata_json"] else {},
+            )
+            for rank, row in enumerate(fts_rows)
+        ]
+
+        # 3. RRF fusion
+        fused = reciprocal_rank_fusion(
+            vector_candidates,
+            fts_candidates,
+            top_k=top_k,
+        )
+
+        # 4. Assemble final result dicts
+        return [
+            {
+                "chunk_id": r.chunk_id,
+                "document_id": r.document_id,
+                "document_title": r.document_title,
+                "chunk_index": r.chunk_index,
+                "content": r.content,
+                "score": r.rrf_score,
+                "vector_rank": r.vector_rank,
+                "fts_rank": r.fts_rank,
+                "metadata": r.metadata,
+            }
+            for r in fused
+        ]
 

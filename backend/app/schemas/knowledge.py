@@ -1,11 +1,30 @@
 """Pydantic schemas for Knowledge Base ingestion and document management."""
 
 from datetime import datetime
+from enum import Enum
 from typing import Any
 import uuid
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.app.models.knowledge import SourceType
+
+
+class SearchType(str, Enum):
+    """Retrieval mode for the knowledge search endpoint.
+
+    vector    — Dense semantic search using pgvector cosine similarity (Phase 7
+                default, preserved for backward compatibility).
+    full_text — PostgreSQL Full-Text Search using GIN-indexed tsvector with
+                websearch_to_tsquery.  Best for exact terminology and keyword
+                queries.
+    hybrid    — Combines vector and FTS candidates via Reciprocal Rank Fusion.
+                Generally the highest quality mode for mixed natural-language
+                and technical-term queries.
+    """
+
+    VECTOR = "vector"
+    FULL_TEXT = "full_text"
+    HYBRID = "hybrid"
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +160,7 @@ class KnowledgeDocumentListResponse(BaseModel):
 
 
 class KnowledgeSearchRequest(BaseModel):
-    """Semantic vector search query request."""
+    """Knowledge search query request supporting vector, full-text, and hybrid modes."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -158,6 +177,13 @@ class KnowledgeSearchRequest(BaseModel):
         le=50,
         description="Maximum number of relevant chunks to retrieve (1-50).",
     )
+    search_type: SearchType = Field(
+        default=SearchType.VECTOR,
+        description=(
+            "Retrieval mode: 'vector' (dense semantic, default), "
+            "'full_text' (PostgreSQL FTS), or 'hybrid' (RRF fusion)."
+        ),
+    )
 
     @field_validator("query")
     @classmethod
@@ -170,7 +196,17 @@ class KnowledgeSearchRequest(BaseModel):
 
 
 class KnowledgeSearchResultItem(BaseModel):
-    """Single semantic search result representing a matched chunk."""
+    """Single knowledge search result representing a matched chunk.
+
+    The ``score`` field semantics vary by search_type:
+    - vector:    cosine similarity (higher = more semantically similar)
+    - full_text: ts_rank float    (higher = stronger keyword match)
+    - hybrid:    RRF score        (higher = stronger combined signal)
+
+    ``vector_rank`` and ``fts_rank`` are populated only for hybrid results
+    and indicate the rank position in each system's candidate list (1=best).
+    They are None when a chunk was not retrieved by that system.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -181,16 +217,25 @@ class KnowledgeSearchResultItem(BaseModel):
     content: str
     score: float = Field(
         ...,
-        description="Cosine similarity score (higher represents greater semantic relevance).",
+        description="Retrieval score (cosine similarity / ts_rank / RRF score depending on search_type).",
+    )
+    vector_rank: int | None = Field(
+        default=None,
+        description="Rank in vector search candidate list (hybrid mode only; None if not retrieved by vector search).",
+    )
+    fts_rank: int | None = Field(
+        default=None,
+        description="Rank in FTS candidate list (hybrid mode only; None if not retrieved by FTS).",
     )
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class KnowledgeSearchResponse(BaseModel):
-    """Response containing matched knowledge chunks ordered by semantic similarity."""
+    """Response containing matched knowledge chunks ordered by retrieval score."""
 
     model_config = ConfigDict(from_attributes=True)
 
     query: str
+    search_type: SearchType = SearchType.VECTOR
     total_results: int
     results: list[KnowledgeSearchResultItem] = Field(default_factory=list)
