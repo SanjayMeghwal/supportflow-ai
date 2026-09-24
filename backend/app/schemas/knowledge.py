@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 import uuid
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.app.models.knowledge import SourceType
 
@@ -133,3 +133,64 @@ class KnowledgeDocumentListResponse(BaseModel):
     total: int
     offset: int
     limit: int
+
+
+# ---------------------------------------------------------------------------
+# Search Schemas (Phase 7)
+# ---------------------------------------------------------------------------
+
+
+class KnowledgeSearchRequest(BaseModel):
+    """Semantic vector search query request."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    query: str = Field(
+        ...,
+        min_length=2,
+        max_length=1000,
+        description="Natural language query string for semantic retrieval.",
+        examples=["What is the refund timeline for cancelled orders?"],
+    )
+    top_k: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Maximum number of relevant chunks to retrieve (1-50).",
+    )
+
+    @field_validator("query")
+    @classmethod
+    def validate_query(cls, v: str) -> str:
+        stripped = v.strip()
+        if len(stripped) < 2:
+            raise ValueError("Query string must contain at least 2 non-whitespace characters.")
+        return stripped
+
+
+
+class KnowledgeSearchResultItem(BaseModel):
+    """Single semantic search result representing a matched chunk."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    chunk_id: uuid.UUID
+    document_id: uuid.UUID
+    document_title: str
+    chunk_index: int
+    content: str
+    score: float = Field(
+        ...,
+        description="Cosine similarity score (higher represents greater semantic relevance).",
+    )
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class KnowledgeSearchResponse(BaseModel):
+    """Response containing matched knowledge chunks ordered by semantic similarity."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    query: str
+    total_results: int
+    results: list[KnowledgeSearchResultItem] = Field(default_factory=list)

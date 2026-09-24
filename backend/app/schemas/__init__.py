@@ -14,6 +14,9 @@ from backend.app.schemas.knowledge import (
     KnowledgeDocumentDetailResponse,
     KnowledgeDocumentListResponse,
     KnowledgeDocumentResponse,
+    KnowledgeSearchRequest,
+    KnowledgeSearchResponse,
+    KnowledgeSearchResultItem,
     TextDocumentCreateRequest,
 )
 from backend.app.schemas.ticket import (
@@ -46,5 +49,8 @@ __all__ = [
     "KnowledgeDocumentResponse",
     "KnowledgeDocumentDetailResponse",
     "KnowledgeDocumentListResponse",
+    "KnowledgeSearchRequest",
+    "KnowledgeSearchResultItem",
+    "KnowledgeSearchResponse",
 ]
 

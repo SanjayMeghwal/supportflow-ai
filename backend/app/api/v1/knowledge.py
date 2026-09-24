@@ -17,6 +17,9 @@ from backend.app.schemas.knowledge import (
     KnowledgeDocumentDetailResponse,
     KnowledgeDocumentListResponse,
     KnowledgeDocumentResponse,
+    KnowledgeSearchRequest,
+    KnowledgeSearchResponse,
+    KnowledgeSearchResultItem,
     TextDocumentCreateRequest,
 )
 from backend.app.services.extractors import ExtractionError
@@ -348,3 +351,62 @@ async def delete_document(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Knowledge document not found.",
         )
+
+
+# ---------------------------------------------------------------------------
+# POST /knowledge/search — Semantic Vector Search (Phase 7)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/search",
+    response_model=KnowledgeSearchResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Semantic vector search across knowledge chunks",
+    responses={
+        400: {"description": "Invalid query or parameters"},
+        401: {"description": "Not authenticated"},
+    },
+)
+async def search_knowledge(
+    payload: KnowledgeSearchRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> KnowledgeSearchResponse:
+    """Retrieve top-K semantically relevant knowledge chunks via dense vector similarity.
+
+    - Computes query embedding using local sentence-transformer model.
+    - Evaluates pgvector cosine similarity against indexed document chunks.
+    - Filters to active documents and orders results by similarity score descending.
+    """
+    try:
+        results = await knowledge_service.search_similar_chunks(
+            db=db,
+            query=payload.query,
+            top_k=payload.top_k,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    items = [
+        KnowledgeSearchResultItem(
+            chunk_id=r["chunk_id"],
+            document_id=r["document_id"],
+            document_title=r["document_title"],
+            chunk_index=r["chunk_index"],
+            content=r["content"],
+            score=r["score"],
+            metadata=r["metadata"],
+        )
+        for r in results
+    ]
+
+    return KnowledgeSearchResponse(
+        query=payload.query,
+        total_results=len(items),
+        results=items,
+    )
+
