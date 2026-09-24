@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
     # RAG & Embedding Settings
-    EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
+    EMBEDDING_MODEL_NAME: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIMENSION: int = 384
     RERANKER_MODEL_NAME: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     RAG_TOP_K: int = 5
