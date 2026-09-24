@@ -41,7 +41,7 @@ Support organizations manage incoming inquiries across chat, email, and portals.
 - **Runtime & Framework:** Python 3.12, FastAPI (async/await, OpenAPI spec, dependency injection).
 - **Validation & Serialization:** Pydantic v2.
 - **ORM & Migrations:** SQLAlchemy 2.0 (declarative async models) + Alembic.
-- **Relational & Vector Database:** PostgreSQL 16+ with `pgvector` extension for unified ACID relational data and dense vector embeddings.
+- **Relational & Vector Database:** PostgreSQL 16+ with `pgvector` extension (HNSW indexing) for dense embeddings, native Full-Text Search (GIN indexing) for lexical retrieval, and Reciprocal Rank Fusion (RRF) for unified hybrid ranking.
 - **Caching & Ephemeral State:** Redis (rate limiting, session caching, task coordination).
 
 ### AI & Retrieval (Free / Open-Source First)
