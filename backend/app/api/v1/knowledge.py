@@ -23,8 +23,14 @@ from backend.app.schemas.knowledge import (
     SearchType,
     TextDocumentCreateRequest,
 )
+from backend.app.schemas.rag import (
+    RAGQueryRequest,
+    RAGQueryResponse,
+    RAGSourceItem,
+)
 from backend.app.services.extractors import ExtractionError
 from backend.app.services.knowledge import DuplicateDocumentError, KnowledgeService
+from backend.app.services.rag_graph import run_rag_pipeline
 
 router = APIRouter()
 knowledge_service = KnowledgeService()
@@ -446,3 +452,77 @@ async def search_knowledge(
         total_results=len(items),
         results=items,
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /knowledge/ask — LangGraph RAG Grounded Answer Synthesis (Phase 10)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/ask",
+    response_model=RAGQueryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Answer inquiry using LangGraph RAG orchestration (Phase 10)",
+    responses={
+        400: {"description": "Invalid query parameter or whitespace-only query"},
+        401: {"description": "Not authenticated"},
+        503: {"description": "LLM service unavailable or unconfigured"},
+    },
+)
+async def ask_knowledge(
+    payload: RAGQueryRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> RAGQueryResponse:
+    """Execute the Phase 10 LangGraph RAG state graph for grounded inquiry resolution.
+
+    Orchestration Lifecycle:
+      1. Authenticate and authorize request (CUSTOMER, SUPPORT_AGENT, or ADMIN).
+      2. Trigger LangGraph StateGraph:
+         - **retrieve**: Multi-stage retrieval (Vector + FTS via RRF + Cross-Encoder reranking).
+         - **context_assembly**: Formats reference passages and builds source citation records.
+         - **context_available?**:
+             * NO  → routes to **insufficient_context** node (safe fallback notice).
+             * YES → routes to **generate_answer** node (Groq LLM grounded synthesis)
+                     followed by **validate_format** node (deterministic format check).
+      3. Propagate answer, context_found indicator, and cited sources.
+    """
+    try:
+        result = await run_rag_pipeline(
+            query=payload.query,
+            db=db,
+            top_k=payload.top_k,
+            knowledge_service=knowledge_service,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    sources = [
+        RAGSourceItem(
+            chunk_id=s["chunk_id"],
+            document_id=s["document_id"],
+            document_title=s["document_title"],
+            chunk_index=s["chunk_index"],
+            content=s["content"],
+            score=s["score"],
+            metadata=s.get("metadata"),
+        )
+        for s in result.get("sources", [])
+    ]
+
+    return RAGQueryResponse(
+        query=payload.query,
+        answer=result.get("answer", ""),
+        context_found=result.get("context_available", False),
+        sources=sources,
+    )
+

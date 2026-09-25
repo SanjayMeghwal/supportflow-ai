@@ -21,6 +21,7 @@ redis>=5.0.4
 
 # LLM & AI Providers
 groq>=0.9.0
+langgraph>=0.2.0
 
 # Local Embeddings & RAG
 pypdf>=4.0.0

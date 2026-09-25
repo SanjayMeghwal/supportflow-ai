@@ -20,6 +20,11 @@ from backend.app.schemas.knowledge import (
     SearchType,
     TextDocumentCreateRequest,
 )
+from backend.app.schemas.rag import (
+    RAGQueryRequest,
+    RAGQueryResponse,
+    RAGSourceItem,
+)
 from backend.app.schemas.ticket import (
     TicketAssignRequest,
     TicketCreateRequest,
@@ -54,5 +59,8 @@ __all__ = [
     "KnowledgeSearchResultItem",
     "KnowledgeSearchResponse",
     "SearchType",
+    "RAGQueryRequest",
+    "RAGQueryResponse",
+    "RAGSourceItem",
 ]
 
