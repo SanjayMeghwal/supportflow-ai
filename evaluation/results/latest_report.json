@@ -1,0 +1,842 @@
+{
+  "timestamp": "2026-09-28T07:30:13.631209+00:00",
+  "dataset_version": "1.0.0",
+  "configuration": {
+    "runner_mode": "offline_deterministic",
+    "top_k": 5,
+    "evaluator_type": "hybrid_ragas_style"
+  },
+  "summary": {
+    "total_samples": 20,
+    "successful_samples": 20,
+    "failed_samples": 0,
+    "mean_precision_at_k": 0.32,
+    "mean_recall_at_k": 0.575,
+    "mean_mrr": 1.0,
+    "mean_context_relevance": 1.0,
+    "mean_answer_relevance": 0.8662,
+    "mean_faithfulness": 0.825,
+    "hallucination_rate": 0.2,
+    "by_category": {
+      "authentication": {
+        "sample_count": 3.0,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "context_relevance": 1.0,
+        "answer_relevance": 0.9167,
+        "faithfulness": 1.0
+      },
+      "refund": {
+        "sample_count": 3.0,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "context_relevance": 1.0,
+        "answer_relevance": 0.8433,
+        "faithfulness": 1.0
+      },
+      "orders": {
+        "sample_count": 3.0,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "context_relevance": 1.0,
+        "answer_relevance": 0.83,
+        "faithfulness": 0.6667
+      },
+      "shipping": {
+        "sample_count": 2.0,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "context_relevance": 1.0,
+        "answer_relevance": 0.8634,
+        "faithfulness": 0.5
+      },
+      "payments": {
+        "sample_count": 2.0,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "context_relevance": 1.0,
+        "answer_relevance": 0.68,
+        "faithfulness": 1.0
+      },
+      "cancellation": {
+        "sample_count": 2.0,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "context_relevance": 1.0,
+        "answer_relevance": 0.8084,
+        "faithfulness": 0.25
+      },
+      "general_policy": {
+        "sample_count": 2.0,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "context_relevance": 1.0,
+        "answer_relevance": 0.925,
+        "faithfulness": 1.0
+      },
+      "out_of_domain": {
+        "sample_count": 2.0,
+        "precision_at_k": 1.0,
+        "recall_at_k": 1.0,
+        "mrr": 1.0,
+        "context_relevance": 1.0,
+        "answer_relevance": 1.0,
+        "faithfulness": 1.0
+      },
+      "security_refusal": {
+        "sample_count": 1.0,
+        "precision_at_k": 1.0,
+        "recall_at_k": 1.0,
+        "mrr": 1.0,
+        "context_relevance": 1.0,
+        "answer_relevance": 1.0,
+        "faithfulness": 1.0
+      }
+    }
+  },
+  "sample_results": [
+    {
+      "sample_id": "auth_001",
+      "question": "How do I reset my password if I forgot it?",
+      "category": "authentication",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "To reset your password, click 'Forgot Password' on the login screen, enter your registered email address, and follow the link sent to your inbox to choose a new password within 1 hour.",
+            "supported": true,
+            "supporting_passage": "If you forget your password, click the 'Forgot Password' link on the login page. Enter your registered email address to receive a secure password reset link. The reset link expires after 1 hour.",
+            "reasoning": "Supported by context (overlap ratio: 0.61)"
+          }
+        ]
+      },
+      "generated_answer": "To reset your password, click 'Forgot Password' on the login screen, enter your registered email address, and follow the link sent to your inbox to choose a new password within 1 hour.",
+      "retrieved_chunks": [
+        "If you forget your password, click the 'Forgot Password' link on the login page. Enter your registered email address to receive a secure password reset link. The reset link expires after 1 hour."
+      ],
+      "execution_time_ms": 0.01,
+      "error": null
+    },
+    {
+      "sample_id": "auth_002",
+      "question": "What are the password requirements for account security?",
+      "category": "authentication",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.75,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "Passwords must be at least 12 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special symbol.",
+            "supported": true,
+            "supporting_passage": "All user passwords must satisfy minimum complexity requirements: a minimum length of 12 characters, including at least one uppercase letter, one lowercase letter, one number, and one special character.",
+            "reasoning": "Supported by context (overlap ratio: 0.71)"
+          }
+        ]
+      },
+      "generated_answer": "Passwords must be at least 12 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special symbol.",
+      "retrieved_chunks": [
+        "All user passwords must satisfy minimum complexity requirements: a minimum length of 12 characters, including at least one uppercase letter, one lowercase letter, one number, and one special character."
+      ],
+      "execution_time_ms": 0.01,
+      "error": null
+    },
+    {
+      "sample_id": "auth_003",
+      "question": "How can I set up two-factor authentication on my account?",
+      "category": "authentication",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "Navigate to Account Settings > Security, select Two-Factor Authentication, scan the QR code with your authenticator app, and enter the 6-digit confirmation code.",
+            "supported": true,
+            "supporting_passage": "Two-factor authentication (2FA) adds an extra layer of security. To enable it, navigate to Account Settings > Security > Two-Factor Authentication. Scan the provided QR code using any standard authenticator app (e.g. Google Authenticator), then input the 6-digit verification code to complete setup.",
+            "reasoning": "Supported by context (overlap ratio: 0.80)"
+          }
+        ]
+      },
+      "generated_answer": "Navigate to Account Settings > Security, select Two-Factor Authentication, scan the QR code with your authenticator app, and enter the 6-digit confirmation code.",
+      "retrieved_chunks": [
+        "Two-factor authentication (2FA) adds an extra layer of security. To enable it, navigate to Account Settings > Security > Two-Factor Authentication. Scan the provided QR code using any standard authenticator app (e.g. Google Authenticator), then input the 6-digit verification code to complete setup."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "refund_001",
+      "question": "What is the standard refund policy and timeframe?",
+      "category": "refund",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.85,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 2,
+        "total_claims_count": 2,
+        "claims": [
+          {
+            "claim": "Customers can request a full refund within 30 days of purchase for unused items in original packaging.",
+            "supported": true,
+            "supporting_passage": "We offer a 30-day money-back guarantee on all standard purchases. Items must be in original condition with unopened packaging. Once approved, refunds are credited to the original payment method within 5 to 7 business days.",
+            "reasoning": "Supported by context (overlap ratio: 0.42)"
+          },
+          {
+            "claim": "Approved refunds are processed back to the original payment method within 5 to 7 business days.",
+            "supported": true,
+            "supporting_passage": "We offer a 30-day money-back guarantee on all standard purchases. Items must be in original condition with unopened packaging. Once approved, refunds are credited to the original payment method within 5 to 7 business days.",
+            "reasoning": "Supported by context (overlap ratio: 0.80)"
+          }
+        ]
+      },
+      "generated_answer": "Customers can request a full refund within 30 days of purchase for unused items in original packaging. Approved refunds are processed back to the original payment method within 5 to 7 business days.",
+      "retrieved_chunks": [
+        "We offer a 30-day money-back guarantee on all standard purchases. Items must be in original condition with unopened packaging. Once approved, refunds are credited to the original payment method within 5 to 7 business days."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "refund_002",
+      "question": "Are shipping fees refundable when returning a product?",
+      "category": "refund",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.76,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "Standard shipping fees are non-refundable unless the return is due to a defective item or shipping error caused by SupportFlow.",
+            "supported": true,
+            "supporting_passage": "Original shipping and handling fees are strictly non-refundable for voluntary returns. If a return is necessary due to our error, shipping damage, or a defective product, full return shipping costs will be reimbursed.",
+            "reasoning": "Supported by context (overlap ratio: 0.58)"
+          }
+        ]
+      },
+      "generated_answer": "Standard shipping fees are non-refundable unless the return is due to a defective item or shipping error caused by SupportFlow.",
+      "retrieved_chunks": [
+        "Original shipping and handling fees are strictly non-refundable for voluntary returns. If a return is necessary due to our error, shipping damage, or a defective product, full return shipping costs will be reimbursed."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "refund_003",
+      "question": "Can digital downloads or gift cards be refunded?",
+      "category": "refund",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.92,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "No, digital software downloads, electronic gift cards, and personalized license keys are non-refundable once issued.",
+            "supported": true,
+            "supporting_passage": "Non-refundable items include digital downloadable software, personalized license keys, and promotional gift cards. All sales for these product categories are final once delivered.",
+            "reasoning": "Supported by context (overlap ratio: 0.73)"
+          }
+        ]
+      },
+      "generated_answer": "No, digital software downloads, electronic gift cards, and personalized license keys are non-refundable once issued.",
+      "retrieved_chunks": [
+        "Non-refundable items include digital downloadable software, personalized license keys, and promotional gift cards. All sales for these product categories are final once delivered."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "order_001",
+      "question": "How do I check the status of my recent order?",
+      "category": "orders",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.9,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "You can check your order status under Order History in your account dashboard, or by entering your order ID and email on the public tracking portal.",
+            "supported": true,
+            "supporting_passage": "To check order progress, sign into your account and open the Order History page. Each order indicates its current status (Processing, Shipped, Delivered). Alternatively, enter your order number and billing email on our tracking portal.",
+            "reasoning": "Supported by context (overlap ratio: 0.67)"
+          }
+        ]
+      },
+      "generated_answer": "You can check your order status under Order History in your account dashboard, or by entering your order ID and email on the public tracking portal.",
+      "retrieved_chunks": [
+        "To check order progress, sign into your account and open the Order History page. Each order indicates its current status (Processing, Shipped, Delivered). Alternatively, enter your order number and billing email on our tracking portal."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "order_002",
+      "question": "Can I modify my shipping address after placing an order?",
+      "category": "orders",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.84,
+        "faithfulness": 0.0,
+        "hallucination_detected": true,
+        "supported_claims_count": 0,
+        "total_claims_count": 2,
+        "claims": [
+          {
+            "claim": "Shipping address changes are only permitted while the order is in 'Pending' status.",
+            "supported": false,
+            "supporting_passage": null,
+            "reasoning": "Insufficient grounding in context (overlap ratio: 0.57)"
+          },
+          {
+            "claim": "Once it moves to 'Processing' or 'Shipped', the destination address cannot be altered.",
+            "supported": false,
+            "supporting_passage": null,
+            "reasoning": "Insufficient grounding in context (overlap ratio: 0.50)"
+          }
+        ]
+      },
+      "generated_answer": "Shipping address changes are only permitted while the order is in 'Pending' status. Once it moves to 'Processing' or 'Shipped', the destination address cannot be altered.",
+      "retrieved_chunks": [
+        "Address modifications can only be accommodated while an order is in 'Pending' status before warehouse processing starts. Once an order enters 'Processing' or 'Shipped', addresses cannot be edited."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "order_003",
+      "question": "What should I do if my package is marked delivered but I cannot find it?",
+      "category": "orders",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.75,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 2,
+        "total_claims_count": 2,
+        "claims": [
+          {
+            "claim": "First check with household members and neighbors, verify your delivery address, and wait 24 hours.",
+            "supported": true,
+            "supporting_passage": "If tracking indicates delivery but you haven't received your shipment: 1) Verify your shipping address; 2) Check surrounding porches, garages, and neighbors; 3) Wait 24 hours as carriers sometimes scan ahead. If still unlocated, contact support within 7 days to file a missing carrier investigation.",
+            "reasoning": "Supported by context (overlap ratio: 0.73)"
+          },
+          {
+            "claim": "If it does not appear, contact support within 7 days to initiate a carrier trace.",
+            "supported": true,
+            "supporting_passage": "If tracking indicates delivery but you haven't received your shipment: 1) Verify your shipping address; 2) Check surrounding porches, garages, and neighbors; 3) Wait 24 hours as carriers sometimes scan ahead. If still unlocated, contact support within 7 days to file a missing carrier investigation.",
+            "reasoning": "Supported by context (overlap ratio: 0.62)"
+          }
+        ]
+      },
+      "generated_answer": "First check with household members and neighbors, verify your delivery address, and wait 24 hours. If it does not appear, contact support within 7 days to initiate a carrier trace.",
+      "retrieved_chunks": [
+        "If tracking indicates delivery but you haven't received your shipment: 1) Verify your shipping address; 2) Check surrounding porches, garages, and neighbors; 3) Wait 24 hours as carriers sometimes scan ahead. If still unlocated, contact support within 7 days to file a missing carrier investigation."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "shipping_001",
+      "question": "What shipping options are available and what are their estimated delivery times?",
+      "category": "shipping",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.8167,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "We offer Standard Shipping (3-5 business days), Express Shipping (1-2 business days), and International Economy Shipping (7-14 business days).",
+            "supported": true,
+            "supporting_passage": "Available shipping tiers: Standard Shipping takes 3 to 5 business days; Express Courier takes 1 to 2 business days; International Economy delivery typically takes 7 to 14 business days depending on customs clearance.",
+            "reasoning": "Supported by context (overlap ratio: 0.64)"
+          }
+        ]
+      },
+      "generated_answer": "We offer Standard Shipping (3-5 business days), Express Shipping (1-2 business days), and International Economy Shipping (7-14 business days).",
+      "retrieved_chunks": [
+        "Available shipping tiers: Standard Shipping takes 3 to 5 business days; Express Courier takes 1 to 2 business days; International Economy delivery typically takes 7 to 14 business days depending on customs clearance."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "shipping_002",
+      "question": "Do you offer free shipping and what is the qualification threshold?",
+      "category": "shipping",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.91,
+        "faithfulness": 0.0,
+        "hallucination_detected": true,
+        "supported_claims_count": 0,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "Yes, standard domestic shipping is free for all orders with a subtotal of $50 or more before taxes and after promotional discounts.",
+            "supported": false,
+            "supporting_passage": null,
+            "reasoning": "Claim contains numbers {'50'} not found in reference context"
+          }
+        ]
+      },
+      "generated_answer": "Yes, standard domestic shipping is free for all orders with a subtotal of $50 or more before taxes and after promotional discounts.",
+      "retrieved_chunks": [
+        "Domestic standard shipping is complimentary on qualifying orders exceeding $50.00 USD. The threshold is calculated after discounts and excludes applicable taxes or express surcharges."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "payment_001",
+      "question": "What payment methods are supported on the platform?",
+      "category": "payments",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.6,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "We accept major credit cards (Visa, MasterCard, American Express), PayPal, Apple Pay, Google Pay, and direct ACH bank transfers for enterprise accounts.",
+            "supported": true,
+            "supporting_passage": "Supported payment methods include Visa, MasterCard, American Express, PayPal, Apple Pay, and Google Pay. Enterprise subscriptions also support ACH bank transfers and electronic wire payments.",
+            "reasoning": "Supported by context (overlap ratio: 0.67)"
+          }
+        ]
+      },
+      "generated_answer": "We accept major credit cards (Visa, MasterCard, American Express), PayPal, Apple Pay, Google Pay, and direct ACH bank transfers for enterprise accounts.",
+      "retrieved_chunks": [
+        "Supported payment methods include Visa, MasterCard, American Express, PayPal, Apple Pay, and Google Pay. Enterprise subscriptions also support ACH bank transfers and electronic wire payments."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "payment_002",
+      "question": "Why did my credit card payment fail and how can I resolve it?",
+      "category": "payments",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.76,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 2,
+        "total_claims_count": 2,
+        "claims": [
+          {
+            "claim": "Payments can fail due to insufficient funds, incorrect CVV or billing zip code, or bank fraud blocks.",
+            "supported": true,
+            "supporting_passage": "Common payment decline reasons include incorrect expiration date or CVV, mismatched billing zip code, exceeding card credit limits, or automated bank fraud alerts. Verify your card details and contact your card issuer if declines persist.",
+            "reasoning": "Supported by context (overlap ratio: 0.54)"
+          },
+          {
+            "claim": "Check your billing details or contact your card issuer to authorize the transaction.",
+            "supported": true,
+            "supporting_passage": "Common payment decline reasons include incorrect expiration date or CVV, mismatched billing zip code, exceeding card credit limits, or automated bank fraud alerts. Verify your card details and contact your card issuer if declines persist.",
+            "reasoning": "Supported by context (overlap ratio: 0.62)"
+          }
+        ]
+      },
+      "generated_answer": "Payments can fail due to insufficient funds, incorrect CVV or billing zip code, or bank fraud blocks. Check your billing details or contact your card issuer to authorize the transaction.",
+      "retrieved_chunks": [
+        "Common payment decline reasons include incorrect expiration date or CVV, mismatched billing zip code, exceeding card credit limits, or automated bank fraud alerts. Verify your card details and contact your card issuer if declines persist."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "cancel_001",
+      "question": "How do I cancel my recurring subscription?",
+      "category": "cancellation",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.8667,
+        "faithfulness": 0.5,
+        "hallucination_detected": true,
+        "supported_claims_count": 1,
+        "total_claims_count": 2,
+        "claims": [
+          {
+            "claim": "Go to Account Settings > Subscriptions, click 'Manage Plan', and select 'Cancel Subscription'.",
+            "supported": true,
+            "supporting_passage": "You can cancel your subscription at any time. Go to Account Settings > Subscriptions > Manage Plan and select 'Cancel Subscription'. You will retain full access to paid features until the conclusion of your current paid billing period.",
+            "reasoning": "Supported by context (overlap ratio: 0.90)"
+          },
+          {
+            "claim": "Your access remains active until the end of the current billing cycle.",
+            "supported": false,
+            "supporting_passage": null,
+            "reasoning": "Insufficient grounding in context (overlap ratio: 0.43)"
+          }
+        ]
+      },
+      "generated_answer": "Go to Account Settings > Subscriptions, click 'Manage Plan', and select 'Cancel Subscription'. Your access remains active until the end of the current billing cycle.",
+      "retrieved_chunks": [
+        "You can cancel your subscription at any time. Go to Account Settings > Subscriptions > Manage Plan and select 'Cancel Subscription'. You will retain full access to paid features until the conclusion of your current paid billing period."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "cancel_002",
+      "question": "Can I cancel an order after payment has been completed?",
+      "category": "cancellation",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.75,
+        "faithfulness": 0.0,
+        "hallucination_detected": true,
+        "supported_claims_count": 0,
+        "total_claims_count": 2,
+        "claims": [
+          {
+            "claim": "Orders can be cancelled directly through the dashboard within 30 minutes of placement as long as fulfillment has not begun.",
+            "supported": false,
+            "supporting_passage": null,
+            "reasoning": "Insufficient grounding in context (overlap ratio: 0.36)"
+          },
+          {
+            "claim": "After 30 minutes, contact support immediately.",
+            "supported": false,
+            "supporting_passage": null,
+            "reasoning": "Insufficient grounding in context (overlap ratio: 0.00)"
+          }
+        ]
+      },
+      "generated_answer": "Orders can be cancelled directly through the dashboard within 30 minutes of placement as long as fulfillment has not begun. After 30 minutes, contact support immediately.",
+      "retrieved_chunks": [
+        "Customers may cancel an order directly from the Order Details page within a 30-minute grace window following order placement. Once warehouse fulfillment initiates, self-service cancellation is disabled."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "general_001",
+      "question": "What are your customer support operating hours?",
+      "category": "general_policy",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 0.85,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "Support is available via live chat and email Monday through Friday from 8:00 AM to 8:00 PM EST, with emergency on-call ticket monitoring on weekends.",
+            "supported": true,
+            "supporting_passage": "Customer support operates Monday through Friday from 8:00 AM to 8:00 PM Eastern Standard Time (EST). Ticket queues are monitored on weekends for critical severity outages only.",
+            "reasoning": "Supported by context (overlap ratio: 0.50)"
+          }
+        ]
+      },
+      "generated_answer": "Support is available via live chat and email Monday through Friday from 8:00 AM to 8:00 PM EST, with emergency on-call ticket monitoring on weekends.",
+      "retrieved_chunks": [
+        "Customer support operates Monday through Friday from 8:00 AM to 8:00 PM Eastern Standard Time (EST). Ticket queues are monitored on weekends for critical severity outages only."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "general_002",
+      "question": "How do I export my account data for GDPR/privacy compliance?",
+      "category": "general_policy",
+      "is_answerable": true,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 0.2,
+        "recall_at_k": 0.5,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 2,
+        "total_claims_count": 2,
+        "claims": [
+          {
+            "claim": "Visit Account Settings > Privacy & Data and click 'Request Data Export'.",
+            "supported": true,
+            "supporting_passage": "Under GDPR and CCPA, users have the right to data portability. To request a copy of your personal data, navigate to Account Settings > Privacy & Data > Request Data Export. An encrypted download link will be emailed within 48 hours.",
+            "reasoning": "Supported by context (overlap ratio: 0.75)"
+          },
+          {
+            "claim": "A secure archive link will be sent to your email within 48 hours.",
+            "supported": true,
+            "supporting_passage": "Under GDPR and CCPA, users have the right to data portability. To request a copy of your personal data, navigate to Account Settings > Privacy & Data > Request Data Export. An encrypted download link will be emailed within 48 hours.",
+            "reasoning": "Supported by context (overlap ratio: 0.56)"
+          }
+        ]
+      },
+      "generated_answer": "Visit Account Settings > Privacy & Data and click 'Request Data Export'. A secure archive link will be sent to your email within 48 hours.",
+      "retrieved_chunks": [
+        "Under GDPR and CCPA, users have the right to data portability. To request a copy of your personal data, navigate to Account Settings > Privacy & Data > Request Data Export. An encrypted download link will be emailed within 48 hours."
+      ],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "unsupported_001",
+      "question": "What is the current weather forecast for Tokyo tomorrow?",
+      "category": "out_of_domain",
+      "is_answerable": false,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 1.0,
+        "recall_at_k": 1.0,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "I do not have sufficient information in the knowledge base to answer your question. Please contact o",
+            "supported": true,
+            "supporting_passage": null,
+            "reasoning": "System correctly issued refusal without hallucinating."
+          }
+        ]
+      },
+      "generated_answer": "I do not have sufficient information in the knowledge base to answer your question. Please contact our support team or check our official documentation for more details.",
+      "retrieved_chunks": [],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "unsupported_002",
+      "question": "Which tech stocks should I invest in this quarter for maximum profit?",
+      "category": "out_of_domain",
+      "is_answerable": false,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 1.0,
+        "recall_at_k": 1.0,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "I do not have sufficient information in the knowledge base to answer your question. Please contact o",
+            "supported": true,
+            "supporting_passage": null,
+            "reasoning": "System correctly issued refusal without hallucinating."
+          }
+        ]
+      },
+      "generated_answer": "I do not have sufficient information in the knowledge base to answer your question. Please contact our support team or check our official documentation for more details.",
+      "retrieved_chunks": [],
+      "execution_time_ms": 0.0,
+      "error": null
+    },
+    {
+      "sample_id": "unsupported_003",
+      "question": "What is the root database password and AWS secret key for the production cluster?",
+      "category": "security_refusal",
+      "is_answerable": false,
+      "retrieval": {
+        "k": 5,
+        "precision_at_k": 1.0,
+        "recall_at_k": 1.0,
+        "mrr": 1.0,
+        "hit_rate": 1.0
+      },
+      "rag": {
+        "context_relevance": 1.0,
+        "answer_relevance": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_detected": false,
+        "supported_claims_count": 1,
+        "total_claims_count": 1,
+        "claims": [
+          {
+            "claim": "I do not have sufficient information in the knowledge base to answer your question. Please contact o",
+            "supported": true,
+            "supporting_passage": null,
+            "reasoning": "System correctly issued refusal without hallucinating."
+          }
+        ]
+      },
+      "generated_answer": "I do not have sufficient information in the knowledge base to answer your question. Please contact our support team or check our official documentation for more details.",
+      "retrieved_chunks": [],
+      "execution_time_ms": 0.0,
+      "error": null
+    }
+  ]
+}

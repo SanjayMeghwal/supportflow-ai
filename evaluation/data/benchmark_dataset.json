@@ -1,0 +1,256 @@
+[
+  {
+    "id": "auth_001",
+    "question": "How do I reset my password if I forgot it?",
+    "reference_answer": "To reset your password, click 'Forgot Password' on the login screen, enter your registered email address, and follow the link sent to your inbox to choose a new password within 1 hour.",
+    "relevant_document_ids": ["doc_auth_guide"],
+    "relevant_chunk_ids": ["chunk_auth_reset_01"],
+    "reference_context": [
+      "If you forget your password, click the 'Forgot Password' link on the login page. Enter your registered email address to receive a secure password reset link. The reset link expires after 1 hour."
+    ],
+    "category": "authentication",
+    "difficulty": "easy",
+    "is_answerable": true
+  },
+  {
+    "id": "auth_002",
+    "question": "What are the password requirements for account security?",
+    "reference_answer": "Passwords must be at least 12 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special symbol.",
+    "relevant_document_ids": ["doc_auth_guide"],
+    "relevant_chunk_ids": ["chunk_auth_security_02"],
+    "reference_context": [
+      "All user passwords must satisfy minimum complexity requirements: a minimum length of 12 characters, including at least one uppercase letter, one lowercase letter, one number, and one special character."
+    ],
+    "category": "authentication",
+    "difficulty": "easy",
+    "is_answerable": true
+  },
+  {
+    "id": "auth_003",
+    "question": "How can I set up two-factor authentication on my account?",
+    "reference_answer": "Navigate to Account Settings > Security, select Two-Factor Authentication, scan the QR code with your authenticator app, and enter the 6-digit confirmation code.",
+    "relevant_document_ids": ["doc_auth_guide"],
+    "relevant_chunk_ids": ["chunk_auth_2fa_03"],
+    "reference_context": [
+      "Two-factor authentication (2FA) adds an extra layer of security. To enable it, navigate to Account Settings > Security > Two-Factor Authentication. Scan the provided QR code using any standard authenticator app (e.g. Google Authenticator), then input the 6-digit verification code to complete setup."
+    ],
+    "category": "authentication",
+    "difficulty": "medium",
+    "is_answerable": true
+  },
+  {
+    "id": "refund_001",
+    "question": "What is the standard refund policy and timeframe?",
+    "reference_answer": "Customers can request a full refund within 30 days of purchase for unused items in original packaging. Approved refunds are processed back to the original payment method within 5 to 7 business days.",
+    "relevant_document_ids": ["doc_refund_policy"],
+    "relevant_chunk_ids": ["chunk_refund_terms_01"],
+    "reference_context": [
+      "We offer a 30-day money-back guarantee on all standard purchases. Items must be in original condition with unopened packaging. Once approved, refunds are credited to the original payment method within 5 to 7 business days."
+    ],
+    "category": "refund",
+    "difficulty": "easy",
+    "is_answerable": true
+  },
+  {
+    "id": "refund_002",
+    "question": "Are shipping fees refundable when returning a product?",
+    "reference_answer": "Standard shipping fees are non-refundable unless the return is due to a defective item or shipping error caused by SupportFlow.",
+    "relevant_document_ids": ["doc_refund_policy"],
+    "relevant_chunk_ids": ["chunk_refund_shipping_02"],
+    "reference_context": [
+      "Original shipping and handling fees are strictly non-refundable for voluntary returns. If a return is necessary due to our error, shipping damage, or a defective product, full return shipping costs will be reimbursed."
+    ],
+    "category": "refund",
+    "difficulty": "medium",
+    "is_answerable": true
+  },
+  {
+    "id": "refund_003",
+    "question": "Can digital downloads or gift cards be refunded?",
+    "reference_answer": "No, digital software downloads, electronic gift cards, and personalized license keys are non-refundable once issued.",
+    "relevant_document_ids": ["doc_refund_policy"],
+    "relevant_chunk_ids": ["chunk_refund_exceptions_03"],
+    "reference_context": [
+      "Non-refundable items include digital downloadable software, personalized license keys, and promotional gift cards. All sales for these product categories are final once delivered."
+    ],
+    "category": "refund",
+    "difficulty": "medium",
+    "is_answerable": true
+  },
+  {
+    "id": "order_001",
+    "question": "How do I check the status of my recent order?",
+    "reference_answer": "You can check your order status under Order History in your account dashboard, or by entering your order ID and email on the public tracking portal.",
+    "relevant_document_ids": ["doc_orders_guide"],
+    "relevant_chunk_ids": ["chunk_order_tracking_01"],
+    "reference_context": [
+      "To check order progress, sign into your account and open the Order History page. Each order indicates its current status (Processing, Shipped, Delivered). Alternatively, enter your order number and billing email on our tracking portal."
+    ],
+    "category": "orders",
+    "difficulty": "easy",
+    "is_answerable": true
+  },
+  {
+    "id": "order_002",
+    "question": "Can I modify my shipping address after placing an order?",
+    "reference_answer": "Shipping address changes are only permitted while the order is in 'Pending' status. Once it moves to 'Processing' or 'Shipped', the destination address cannot be altered.",
+    "relevant_document_ids": ["doc_orders_guide"],
+    "relevant_chunk_ids": ["chunk_order_modifications_02"],
+    "reference_context": [
+      "Address modifications can only be accommodated while an order is in 'Pending' status before warehouse processing starts. Once an order enters 'Processing' or 'Shipped', addresses cannot be edited."
+    ],
+    "category": "orders",
+    "difficulty": "medium",
+    "is_answerable": true
+  },
+  {
+    "id": "order_003",
+    "question": "What should I do if my package is marked delivered but I cannot find it?",
+    "reference_answer": "First check with household members and neighbors, verify your delivery address, and wait 24 hours. If it does not appear, contact support within 7 days to initiate a carrier trace.",
+    "relevant_document_ids": ["doc_orders_guide"],
+    "relevant_chunk_ids": ["chunk_order_missing_03"],
+    "reference_context": [
+      "If tracking indicates delivery but you haven't received your shipment: 1) Verify your shipping address; 2) Check surrounding porches, garages, and neighbors; 3) Wait 24 hours as carriers sometimes scan ahead. If still unlocated, contact support within 7 days to file a missing carrier investigation."
+    ],
+    "category": "orders",
+    "difficulty": "medium",
+    "is_answerable": true
+  },
+  {
+    "id": "shipping_001",
+    "question": "What shipping options are available and what are their estimated delivery times?",
+    "reference_answer": "We offer Standard Shipping (3-5 business days), Express Shipping (1-2 business days), and International Economy Shipping (7-14 business days).",
+    "relevant_document_ids": ["doc_shipping_policy"],
+    "relevant_chunk_ids": ["chunk_shipping_tiers_01"],
+    "reference_context": [
+      "Available shipping tiers: Standard Shipping takes 3 to 5 business days; Express Courier takes 1 to 2 business days; International Economy delivery typically takes 7 to 14 business days depending on customs clearance."
+    ],
+    "category": "shipping",
+    "difficulty": "easy",
+    "is_answerable": true
+  },
+  {
+    "id": "shipping_002",
+    "question": "Do you offer free shipping and what is the qualification threshold?",
+    "reference_answer": "Yes, standard domestic shipping is free for all orders with a subtotal of $50 or more before taxes and after promotional discounts.",
+    "relevant_document_ids": ["doc_shipping_policy"],
+    "relevant_chunk_ids": ["chunk_shipping_free_02"],
+    "reference_context": [
+      "Domestic standard shipping is complimentary on qualifying orders exceeding $50.00 USD. The threshold is calculated after discounts and excludes applicable taxes or express surcharges."
+    ],
+    "category": "shipping",
+    "difficulty": "easy",
+    "is_answerable": true
+  },
+  {
+    "id": "payment_001",
+    "question": "What payment methods are supported on the platform?",
+    "reference_answer": "We accept major credit cards (Visa, MasterCard, American Express), PayPal, Apple Pay, Google Pay, and direct ACH bank transfers for enterprise accounts.",
+    "relevant_document_ids": ["doc_billing_guide"],
+    "relevant_chunk_ids": ["chunk_payment_methods_01"],
+    "reference_context": [
+      "Supported payment methods include Visa, MasterCard, American Express, PayPal, Apple Pay, and Google Pay. Enterprise subscriptions also support ACH bank transfers and electronic wire payments."
+    ],
+    "category": "payments",
+    "difficulty": "easy",
+    "is_answerable": true
+  },
+  {
+    "id": "payment_002",
+    "question": "Why did my credit card payment fail and how can I resolve it?",
+    "reference_answer": "Payments can fail due to insufficient funds, incorrect CVV or billing zip code, or bank fraud blocks. Check your billing details or contact your card issuer to authorize the transaction.",
+    "relevant_document_ids": ["doc_billing_guide"],
+    "relevant_chunk_ids": ["chunk_payment_declines_02"],
+    "reference_context": [
+      "Common payment decline reasons include incorrect expiration date or CVV, mismatched billing zip code, exceeding card credit limits, or automated bank fraud alerts. Verify your card details and contact your card issuer if declines persist."
+    ],
+    "category": "payments",
+    "difficulty": "medium",
+    "is_answerable": true
+  },
+  {
+    "id": "cancel_001",
+    "question": "How do I cancel my recurring subscription?",
+    "reference_answer": "Go to Account Settings > Subscriptions, click 'Manage Plan', and select 'Cancel Subscription'. Your access remains active until the end of the current billing cycle.",
+    "relevant_document_ids": ["doc_subscription_guide"],
+    "relevant_chunk_ids": ["chunk_cancel_sub_01"],
+    "reference_context": [
+      "You can cancel your subscription at any time. Go to Account Settings > Subscriptions > Manage Plan and select 'Cancel Subscription'. You will retain full access to paid features until the conclusion of your current paid billing period."
+    ],
+    "category": "cancellation",
+    "difficulty": "easy",
+    "is_answerable": true
+  },
+  {
+    "id": "cancel_002",
+    "question": "Can I cancel an order after payment has been completed?",
+    "reference_answer": "Orders can be cancelled directly through the dashboard within 30 minutes of placement as long as fulfillment has not begun. After 30 minutes, contact support immediately.",
+    "relevant_document_ids": ["doc_orders_guide"],
+    "relevant_chunk_ids": ["chunk_order_cancellation_04"],
+    "reference_context": [
+      "Customers may cancel an order directly from the Order Details page within a 30-minute grace window following order placement. Once warehouse fulfillment initiates, self-service cancellation is disabled."
+    ],
+    "category": "cancellation",
+    "difficulty": "medium",
+    "is_answerable": true
+  },
+  {
+    "id": "general_001",
+    "question": "What are your customer support operating hours?",
+    "reference_answer": "Support is available via live chat and email Monday through Friday from 8:00 AM to 8:00 PM EST, with emergency on-call ticket monitoring on weekends.",
+    "relevant_document_ids": ["doc_general_support"],
+    "relevant_chunk_ids": ["chunk_support_hours_01"],
+    "reference_context": [
+      "Customer support operates Monday through Friday from 8:00 AM to 8:00 PM Eastern Standard Time (EST). Ticket queues are monitored on weekends for critical severity outages only."
+    ],
+    "category": "general_policy",
+    "difficulty": "easy",
+    "is_answerable": true
+  },
+  {
+    "id": "general_002",
+    "question": "How do I export my account data for GDPR/privacy compliance?",
+    "reference_answer": "Visit Account Settings > Privacy & Data and click 'Request Data Export'. A secure archive link will be sent to your email within 48 hours.",
+    "relevant_document_ids": ["doc_privacy_policy"],
+    "relevant_chunk_ids": ["chunk_privacy_export_01"],
+    "reference_context": [
+      "Under GDPR and CCPA, users have the right to data portability. To request a copy of your personal data, navigate to Account Settings > Privacy & Data > Request Data Export. An encrypted download link will be emailed within 48 hours."
+    ],
+    "category": "general_policy",
+    "difficulty": "medium",
+    "is_answerable": true
+  },
+  {
+    "id": "unsupported_001",
+    "question": "What is the current weather forecast for Tokyo tomorrow?",
+    "reference_answer": "I do not have sufficient information in the knowledge base to answer your question.",
+    "relevant_document_ids": [],
+    "relevant_chunk_ids": [],
+    "reference_context": [],
+    "category": "out_of_domain",
+    "difficulty": "easy",
+    "is_answerable": false
+  },
+  {
+    "id": "unsupported_002",
+    "question": "Which tech stocks should I invest in this quarter for maximum profit?",
+    "reference_answer": "I do not have sufficient information in the knowledge base to answer your question.",
+    "relevant_document_ids": [],
+    "relevant_chunk_ids": [],
+    "reference_context": [],
+    "category": "out_of_domain",
+    "difficulty": "easy",
+    "is_answerable": false
+  },
+  {
+    "id": "unsupported_003",
+    "question": "What is the root database password and AWS secret key for the production cluster?",
+    "reference_answer": "I do not have sufficient information in the knowledge base to answer your question.",
+    "relevant_document_ids": [],
+    "relevant_chunk_ids": [],
+    "reference_context": [],
+    "category": "security_refusal",
+    "difficulty": "hard",
+    "is_answerable": false
+  }
+]
