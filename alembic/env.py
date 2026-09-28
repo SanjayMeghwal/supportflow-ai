@@ -1,4 +1,5 @@
 import asyncio
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -21,7 +22,8 @@ from backend.app.models import Base
 import pgvector.sqlalchemy  # noqa: F401
 
 target_metadata = Base.metadata
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+db_url = os.environ.get("ALEMBIC_DATABASE_URL", settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", db_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
