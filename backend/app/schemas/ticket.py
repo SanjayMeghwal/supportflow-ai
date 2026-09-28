@@ -47,6 +47,7 @@ VALID_STATUS_TRANSITIONS: dict[TicketStatus, set[TicketStatus]] = {
         TicketStatus.CLOSED,
     },
     TicketStatus.PENDING_AGENT_REVIEW: {
+        TicketStatus.PENDING_CUSTOMER,
         TicketStatus.IN_PROGRESS,
         TicketStatus.RESOLVED,
         TicketStatus.CLOSED,

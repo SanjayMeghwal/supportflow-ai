@@ -11,11 +11,23 @@ Phase 11 — Bounded AI Tool Execution Layer
     3. Enforces authorization inside each tool.
     4. Re-synthesizes the answer with the authoritative tool result as additional context.
 
+Phase 12 — Human-In-The-Loop Escalation Detection
+  After answer validation, the pipeline deterministically evaluates whether the
+  result requires human review before delivery to the customer.  Triggers are:
+    1. Explicit human-request or guardrail keywords in the query.
+    2. Tool execution failure or denial.
+    3. Missing knowledge base context.
+    4. Grounding confidence score below the configured threshold (0.70).
+  When a trigger fires, escalation metadata is written into AgentState.
+  The API layer reads these flags and persists the HumanReview record.
+  The LLM CANNOT approve, edit, or reject its own output.
+
 Security invariants:
   - The LLM cannot bypass the ToolRegistry.
   - Tool calls are capped at MAX_TOOL_CALLS per run.
   - current_user is always passed from the API layer, never derived from LLM output.
   - Tool results replace speculation — the LLM must use them as ground truth.
+  - Escalation decisions are deterministic and application-enforced, not LLM-driven.
 """
 
 import json
@@ -29,6 +41,7 @@ from backend.app.models.user import User
 from backend.app.schemas.tools import ToolCallRequest, ToolResult
 from backend.app.services.knowledge import KnowledgeService
 from backend.app.services.llm import BaseLLMService, get_llm_service
+from backend.app.services.review_service import check_escalation_triggers
 from backend.app.services.tool_registry import (
     MAX_TOOL_CALLS,
     dispatch_tool,
@@ -86,12 +99,12 @@ SYNTHESIS_WITH_TOOL_PROMPT: str = (
 
 
 # ---------------------------------------------------------------------------
-# AgentState — Phase 11 extension
+# AgentState — Phase 12 extension
 # ---------------------------------------------------------------------------
 
 
 class AgentState(TypedDict, total=False):
-    """Explicit state schema for the LangGraph RAG + tool workflow."""
+    """Explicit state schema for the LangGraph RAG + tool + HITL escalation workflow."""
 
     # Inbound inputs
     query: str
@@ -117,6 +130,13 @@ class AgentState(TypedDict, total=False):
     answer: str
     is_valid: bool
     error: Optional[str]
+
+    # Phase 12: Human-In-The-Loop escalation detection
+    # These fields are written by the check_escalation node.
+    # The API layer reads them to persist a HumanReview DB record.
+    escalation_triggered: bool                  # True iff the run must pause for human review
+    escalation_reason: Optional[str]            # Human-readable trigger description
+    escalation_status: Optional[str]            # AIRunStatus value (ESCALATED_GUARDRAIL|ESCALATED_LOW_CONFIDENCE)
 
 
 # ---------------------------------------------------------------------------
@@ -269,9 +289,9 @@ def build_rag_graph(
     db: AsyncSession,
     current_user: Optional[User] = None,
 ) -> CompiledStateGraph:
-    """Construct and compile the Phase 10 + 11 LangGraph RAG state graph.
+    """Construct and compile the Phase 10 + 11 + 12 LangGraph RAG state graph.
 
-    Graph Architecture (Phase 11)
+    Graph Architecture (Phase 12)
     ------------------------------
     START
       ↓
@@ -280,15 +300,17 @@ def build_rag_graph(
     context_assembly (formats reference text + citations)
       ↓
     context_available?
-      ├── NO  → insufficient_context → END
+      ├── NO  → insufficient_context → check_escalation → END
       └── YES → generate_answer_or_tool_call
-                  ├── tool requested? YES → execute_tool → synthesize_with_tool → validate_format → END
-                  └── NO → validate_format → END
+                  ├── tool requested? YES → execute_tool → synthesize_with_tool → validate_format → check_escalation → END
+                  └── NO → validate_format → check_escalation → END
 
     Security:
       - current_user is resolved from the API layer and injected at build time.
       - Tool execution is capped by MAX_TOOL_CALLS.
       - ToolRegistry enforces authorization inside each tool.
+      - Escalation is deterministic and application-enforced — the LLM cannot
+        approve, edit, or reject its own output.
     """
     # Prepare tool-aware system prompt if user context is available
     tool_descriptions_text = "\n".join(
@@ -461,6 +483,41 @@ def build_rag_graph(
         return validate_response(state.get("answer", ""))
 
     # -----------------------------------------------------------------------
+    # Node: check_escalation  (Phase 12)
+    # -----------------------------------------------------------------------
+
+    def check_escalation_step(state: AgentState) -> dict[str, Any]:
+        """Deterministically evaluate whether this run requires human review.
+
+        Reads finalized state (answer, context_available, tool_result) and calls
+        the application-level `check_escalation_triggers` function.  The result
+        is stored as escalation metadata in state — the API layer reads these
+        fields and creates the HumanReview DB record if needed.
+
+        The LLM has no access to this node and cannot influence its output.
+        """
+        # Derive a confidence score proxy from the best reranked doc score
+        confidence_score: Optional[float] = None
+        docs = state.get("retrieved_docs") or []
+        if docs:
+            top_score = docs[0].get("rerank_score", docs[0].get("score"))
+            if top_score is not None:
+                confidence_score = float(top_score)
+
+        should_escalate, reason, run_status = check_escalation_triggers(
+            state.get("query", ""),
+            context_available=state.get("context_available", False),
+            confidence_score=confidence_score,
+            tool_result=state.get("tool_result"),
+        )
+
+        return {
+            "escalation_triggered": should_escalate,
+            "escalation_reason": reason,
+            "escalation_status": run_status.value,
+        }
+
+    # -----------------------------------------------------------------------
     # Register nodes
     # -----------------------------------------------------------------------
     workflow.add_node("retrieve", retrieve_step)
@@ -470,6 +527,7 @@ def build_rag_graph(
     workflow.add_node("execute_tool", execute_tool_step)
     workflow.add_node("synthesize_with_tool", synthesize_with_tool_step)
     workflow.add_node("validate_format", validate_format_step)
+    workflow.add_node("check_escalation", check_escalation_step)
 
     # -----------------------------------------------------------------------
     # Register edges and conditional routing
@@ -494,8 +552,9 @@ def build_rag_graph(
     )
     workflow.add_edge("execute_tool", "synthesize_with_tool")
     workflow.add_edge("synthesize_with_tool", "validate_format")
-    workflow.add_edge("validate_format", END)
-    workflow.add_edge("insufficient_context", END)
+    workflow.add_edge("validate_format", "check_escalation")
+    workflow.add_edge("insufficient_context", "check_escalation")
+    workflow.add_edge("check_escalation", END)
 
     return workflow.compile()
 
@@ -566,6 +625,10 @@ async def run_rag_pipeline(
         "answer": "",
         "is_valid": False,
         "error": None,
+        # Phase 12 escalation defaults (overwritten by check_escalation node)
+        "escalation_triggered": False,
+        "escalation_reason": None,
+        "escalation_status": None,
     }
 
     result = await graph.ainvoke(initial_state)

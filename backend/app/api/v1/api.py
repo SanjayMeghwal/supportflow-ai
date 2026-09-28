@@ -8,7 +8,7 @@ Sub-routers are mounted here. Adding a new feature means:
 
 from fastapi import APIRouter
 
-from backend.app.api.v1 import auth, knowledge, tickets
+from backend.app.api.v1 import auth, knowledge, reviews, tickets
 
 api_router = APIRouter()
 
@@ -21,8 +21,10 @@ api_router.include_router(tickets.router, prefix="/tickets", tags=["Tickets"])
 # Knowledge Base & RAG Ingestion
 api_router.include_router(knowledge.router, prefix="/knowledge", tags=["Knowledge Base"])
 
+# Human-In-The-Loop review & escalation (Phase 12)
+api_router.include_router(reviews.router, prefix="/reviews", tags=["Human Review"])
+
 # Future routers (uncomment when implemented):
-# api_router.include_router(reviews.router, prefix="/reviews", tags=["Human Review"])
 # api_router.include_router(orders.router, prefix="/orders", tags=["Orders & Payments"])
 # api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 

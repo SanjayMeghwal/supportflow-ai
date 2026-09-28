@@ -82,13 +82,21 @@ class GroqLLMService(BaseLLMService):
 
 
 class MockLLMService(BaseLLMService):
-    """Mock LLM service for testing and offline development."""
+    """Mock LLM service for testing and offline development.
+
+    Accepts either a single ``default_response`` string (returned on every call)
+    or a ``responses`` list (each call pops the next item; falls back to
+    ``default_response`` when the list is exhausted).  Both arguments are
+    optional and can be combined.
+    """
 
     def __init__(
         self,
         default_response: str = "This is a deterministic mock response based strictly on the retrieved context.",
+        responses: Optional[list[str]] = None,
     ) -> None:
         self.default_response = default_response
+        self._responses: list[str] = list(responses) if responses else []
         self.call_history: list[dict[str, Any]] = []
 
     async def generate(
@@ -105,6 +113,8 @@ class MockLLMService(BaseLLMService):
                 "max_tokens": max_tokens,
             }
         )
+        if self._responses:
+            return self._responses.pop(0)
         return self.default_response
 
 

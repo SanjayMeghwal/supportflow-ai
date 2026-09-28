@@ -1,9 +1,11 @@
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from sqlalchemy import (
     Boolean,
+    DateTime,
     Enum as SQLEnum,
     ForeignKey,
     Integer,
@@ -26,6 +28,14 @@ class AIRunStatus(str, Enum):
     ESCALATED_LOW_CONFIDENCE = "ESCALATED_LOW_CONFIDENCE"
     ESCALATED_GUARDRAIL = "ESCALATED_GUARDRAIL"
     FAILED = "FAILED"
+
+
+class ReviewStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    EDITED = "EDITED"
+    REJECTED = "REJECTED"
+    ESCALATED = "ESCALATED"
 
 
 class ReviewAction(str, Enum):
@@ -156,15 +166,26 @@ class HumanReview(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         index=True,
         nullable=False,
     )
-    reviewer_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+    status: Mapped[ReviewStatus] = mapped_column(
+        SQLEnum(ReviewStatus, name="review_status_enum"),
+        default=ReviewStatus.PENDING,
         index=True,
         nullable=False,
     )
-    action_taken: Mapped[ReviewAction] = mapped_column(
-        SQLEnum(ReviewAction, name="review_action_enum"),
+    escalation_reason: Mapped[str] = mapped_column(
+        String(255),
+        default="AI escalation",
         nullable=False,
+    )
+    reviewer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    action_taken: Mapped[Optional[ReviewAction]] = mapped_column(
+        SQLEnum(ReviewAction, name="review_action_enum"),
+        nullable=True,
     )
     original_ai_draft: Mapped[str] = mapped_column(
         Text,
@@ -178,6 +199,10 @@ class HumanReview(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         Text,
         nullable=True,
     )
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     # Relationships
     ticket: Mapped["Ticket"] = relationship(
@@ -188,7 +213,7 @@ class HumanReview(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         "AIRun",
         back_populates="human_reviews",
     )
-    reviewer: Mapped["User"] = relationship(
+    reviewer: Mapped[Optional["User"]] = relationship(
         "User",
         back_populates="reviews_performed",
     )

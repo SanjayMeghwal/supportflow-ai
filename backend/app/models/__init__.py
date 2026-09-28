@@ -29,6 +29,7 @@ from backend.app.models.ai import (
     AuditLog,
     HumanReview,
     ReviewAction,
+    ReviewStatus,
 )
 
 __all__ = [
@@ -58,5 +59,6 @@ __all__ = [
     "AIToolInvocation",
     "HumanReview",
     "ReviewAction",
+    "ReviewStatus",
     "AuditLog",
 ]
