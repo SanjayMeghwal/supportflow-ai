@@ -461,5 +461,12 @@ async def submit_review_action(
     db.add(audit)
 
     await db.commit()
-    await db.refresh(review)
-    return review
+
+    # Re-fetch with eagerly loaded ticket relationship to avoid
+    # lazy-load MissingGreenlet errors in _review_to_item_response.
+    refreshed = await db.execute(
+        select(HumanReview)
+        .options(selectinload(HumanReview.ticket))
+        .where(HumanReview.id == review.id)
+    )
+    return refreshed.scalar_one()
