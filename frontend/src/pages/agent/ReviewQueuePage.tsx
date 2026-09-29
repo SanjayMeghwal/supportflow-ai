@@ -38,11 +38,15 @@ const PAGE_SIZE = 10;
 const ReviewCard: React.FC<{
   review: ReviewItem;
   onApprove: (id: string, notes: string) => void;
+  onEdit: (id: string, editedText: string, notes: string) => void;
   onReject: (id: string, notes: string) => void;
   isActioning: boolean;
-}> = ({ review, onApprove, onReject, isActioning }) => {
+}> = ({ review, onApprove, onEdit, onReject, isActioning }) => {
   const [expanded, setExpanded] = useState(false);
   const [notes, setNotes] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedText, setEditedText] = useState(review.original_ai_draft || "");
+  const [activeTab, setActiveTab] = useState<"edit" | "diff">("edit");
 
   const isPending = review.status === "PENDING";
   const aiDraft = review.original_ai_draft;
@@ -77,31 +81,97 @@ const ReviewCard: React.FC<{
 
       {aiDraft && (
         <CardContent>
-          {/* AI draft */}
-          <div className="mb-3">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
-              AI Draft Response
-            </p>
-            <div
-              className={`text-sm text-slate-700 whitespace-pre-wrap overflow-hidden transition-all ${
-                expanded ? "max-h-none" : "max-h-24"
-              }`}
-            >
-              {aiDraft}
-            </div>
-            {aiDraft.length > 200 && (
-              <button
-                className="mt-2 text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1"
-                onClick={() => setExpanded(!expanded)}
+          {/* AI draft / Edit mode */}
+          {!isEditing ? (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                AI Draft Response
+              </p>
+              <div
+                className={`text-sm text-slate-700 whitespace-pre-wrap overflow-hidden transition-all ${
+                  expanded ? "max-h-none" : "max-h-24"
+                }`}
               >
-                {expanded ? (
-                  <><ChevronUp className="w-3 h-3" /> Show less</>
-                ) : (
-                  <><ChevronDown className="w-3 h-3" /> Show more</>
-                )}
-              </button>
-            )}
-          </div>
+                {aiDraft}
+              </div>
+              {aiDraft.length > 200 && (
+                <button
+                  className="mt-2 text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1"
+                  onClick={() => setExpanded(!expanded)}
+                >
+                  {expanded ? (
+                    <><ChevronUp className="w-3 h-3" /> Show less</>
+                  ) : (
+                    <><ChevronDown className="w-3 h-3" /> Show more</>
+                  )}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="mb-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                      activeTab === "edit"
+                        ? "bg-brand-50 text-brand-700 font-semibold"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                    onClick={() => setActiveTab("edit")}
+                  >
+                    Edit Response
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                      activeTab === "diff"
+                        ? "bg-brand-50 text-brand-700 font-semibold"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                    onClick={() => setActiveTab("diff")}
+                  >
+                    Diff Preview
+                  </button>
+                </div>
+                <span className="text-xs text-slate-400">
+                  {editedText.length} characters
+                </span>
+              </div>
+
+              {activeTab === "edit" ? (
+                <Textarea
+                  id={`review-edit-text-${review.id}`}
+                  label="Response to send to customer"
+                  rows={5}
+                  value={editedText}
+                  onChange={(e) => setEditedText(e.target.value)}
+                  placeholder="Modify the draft before sending to the customer..."
+                />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-semibold text-rose-700">
+                      <span>Original AI Draft</span>
+                      <Badge variant="secondary" size="sm">Original</Badge>
+                    </div>
+                    <div className="p-3 bg-rose-50/70 border border-rose-200 rounded text-xs text-rose-950 font-mono whitespace-pre-wrap max-h-56 overflow-y-auto">
+                      {aiDraft}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-semibold text-emerald-700">
+                      <span>Human-Edited Text</span>
+                      <Badge variant="success" size="sm">Modified</Badge>
+                    </div>
+                    <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded text-xs text-emerald-950 font-mono whitespace-pre-wrap max-h-56 overflow-y-auto">
+                      {editedText}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Action area — only for PENDING reviews */}
           {isPending && (
@@ -114,28 +184,69 @@ const ReviewCard: React.FC<{
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
-              <div className="flex gap-2 justify-end">
-                <Button
-                  id={`review-reject-${review.id}`}
-                  size="sm"
-                  variant="outline"
-                  className="text-rose-600 border-rose-200 hover:bg-rose-50"
-                  onClick={() => onReject(review.id, notes)}
-                  isLoading={isActioning}
-                  leftIcon={<XCircle className="w-3.5 h-3.5" />}
-                >
-                  Reject
-                </Button>
-                <Button
-                  id={`review-approve-${review.id}`}
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={() => onApprove(review.id, notes)}
-                  isLoading={isActioning}
-                  leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                >
-                  Approve
-                </Button>
+              <div className="flex gap-2 justify-end flex-wrap">
+                {isEditing ? (
+                  <>
+                    <Button
+                      id={`review-cancel-edit-${review.id}`}
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditedText(aiDraft || "");
+                      }}
+                      disabled={isActioning}
+                    >
+                      Cancel Edit
+                    </Button>
+                    <Button
+                      id={`review-submit-edit-${review.id}`}
+                      size="sm"
+                      className="bg-brand-600 hover:bg-brand-700 text-white"
+                      onClick={() => onEdit(review.id, editedText, notes)}
+                      isLoading={isActioning}
+                      disabled={!editedText.trim()}
+                      leftIcon={<Edit3 className="w-3.5 h-3.5" />}
+                    >
+                      Submit Edited Response
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      id={`review-reject-${review.id}`}
+                      size="sm"
+                      variant="outline"
+                      className="text-rose-600 border-rose-200 hover:bg-rose-50"
+                      onClick={() => onReject(review.id, notes)}
+                      isLoading={isActioning}
+                      leftIcon={<XCircle className="w-3.5 h-3.5" />}
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      id={`review-start-edit-${review.id}`}
+                      size="sm"
+                      variant="outline"
+                      className="text-brand-600 border-brand-200 hover:bg-brand-50"
+                      onClick={() => setIsEditing(true)}
+                      disabled={isActioning}
+                      leftIcon={<Edit3 className="w-3.5 h-3.5" />}
+                    >
+                      Edit Response
+                    </Button>
+                    <Button
+                      id={`review-approve-${review.id}`}
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => onApprove(review.id, notes)}
+                      isLoading={isActioning}
+                      leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                    >
+                      Approve
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -195,6 +306,32 @@ export const ReviewQueuePage: React.FC = () => {
     },
   });
 
+  const editMutation = useMutation({
+    mutationFn: ({
+      id,
+      editedText,
+      notes,
+    }: {
+      id: string;
+      editedText: string;
+      notes: string;
+    }) =>
+      reviewsApi.editReview(id, {
+        final_submitted_text: editedText,
+        notes: notes || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reviews"] });
+      toast({ title: "Review edited & submitted", variant: "success" });
+      setActioningId(null);
+    },
+    onError: (err) => {
+      const msg = err instanceof APIError ? err.message : "Edit submission failed";
+      toast({ title: "Error", description: msg, variant: "error" });
+      setActioningId(null);
+    },
+  });
+
   const rejectMutation = useMutation({
     mutationFn: ({ id, notes }: { id: string; notes: string }) =>
       reviewsApi.rejectReview(id, { feedback_notes: notes || "Rejected by reviewer" }),
@@ -213,6 +350,11 @@ export const ReviewQueuePage: React.FC = () => {
   const handleApprove = (id: string, notes: string) => {
     setActioningId(id);
     approveMutation.mutate({ id, notes });
+  };
+
+  const handleEdit = (id: string, editedText: string, notes: string) => {
+    setActioningId(id);
+    editMutation.mutate({ id, editedText, notes });
   };
 
   const handleReject = (id: string, notes: string) => {
@@ -264,10 +406,13 @@ export const ReviewQueuePage: React.FC = () => {
               key={review.id}
               review={review}
               onApprove={handleApprove}
+              onEdit={handleEdit}
               onReject={handleReject}
               isActioning={
                 actioningId === review.id &&
-                (approveMutation.isPending || rejectMutation.isPending)
+                (approveMutation.isPending ||
+                  editMutation.isPending ||
+                  rejectMutation.isPending)
               }
             />
           ))}

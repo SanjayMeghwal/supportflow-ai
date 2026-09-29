@@ -50,7 +50,6 @@ export const CustomerTicketDetailPage: React.FC = () => {
     queryKey: ["ticket", id],
     queryFn: () => ticketsApi.getTicket(id!),
     enabled: !!id,
-    retry: 1,
   });
 
   // Close ticket — uses updateTicket (PATCH /tickets/{id}) with status: "CLOSED"

@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { ticketsApi } from "@/services/api";
 import {
@@ -42,6 +42,7 @@ const PRIORITY_OPTIONS = [
 const PAGE_SIZE = 15;
 
 export const CustomerTicketListPage: React.FC = () => {
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "">("");
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "">("");
   const [offset, setOffset] = useState(0);
@@ -140,7 +141,7 @@ export const CustomerTicketListPage: React.FC = () => {
             }
             action={{
               label: "Create first ticket",
-              onClick: () => window.location.replace("/app/tickets/new"),
+              onClick: () => navigate("/app/tickets/new"),
             }}
           />
         ) : (

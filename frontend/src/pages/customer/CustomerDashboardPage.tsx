@@ -4,7 +4,7 @@
  */
 
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ticketsApi } from "@/services/api";
 import { useAuth } from "@/context/AuthContext";
@@ -51,6 +51,7 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, icon, color }) => (
 
 export const CustomerDashboardPage: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["tickets", "customer-dashboard"],
@@ -154,7 +155,7 @@ export const CustomerDashboardPage: React.FC = () => {
             description="When you create a support ticket, it will appear here."
             action={{
               label: "Create your first ticket",
-              onClick: () => window.location.replace("/app/tickets/new"),
+              onClick: () => navigate("/app/tickets/new"),
             }}
           />
         ) : (
