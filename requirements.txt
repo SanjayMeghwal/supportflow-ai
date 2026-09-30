@@ -6,7 +6,7 @@ pydantic-settings>=2.3.0
 python-multipart>=0.0.9
 
 # Database & ORM
-sqlalchemy>=2.0.30
+sqlalchemy[asyncio]>=2.0.30
 asyncpg>=0.29.0
 pgvector>=0.2.5
 alembic>=1.13.1

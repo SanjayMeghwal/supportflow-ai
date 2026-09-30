@@ -1,0 +1,38 @@
+# Version Control
+.git
+.gitignore
+
+# Environment & Secrets (CRITICAL: Never bake into Docker images)
+.env
+.env.*
+!.env.example
+
+# Python runtime artifacts & caches
+.venv
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+
+# Frontend artifacts (handled by frontend/.dockerignore when building frontend)
+frontend/
+node_modules/
+dist/
+build/
+
+# IDE & Editor artifacts
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs and scratch files
+*.log
+scratch/
+.system_generated/

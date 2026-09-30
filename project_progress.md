@@ -1,10 +1,10 @@
 # SupportFlow AI — Project Progress Report
 
-> Last Updated: 2026-09-29 | Current Active Phase: Phase 15 Complete
+> Last Updated: 2026-09-30 | Current Active Phase: Phase 16 Complete | Next Phase: Phase 17
 
 ---
 
-## Overall Progress: Phases 0–15 ✅ Complete | Phase 16 Next
+## Overall Progress: Phases 0–16 ✅ Complete | Phase 17 Next
 
 | Phase | Title | Status |
 |-------|-------|--------|
@@ -23,13 +23,88 @@
 | 12 | Human-In-The-Loop Review & Escalation | ✅ Complete |
 | 13 | Grounding, Faithfulness & AI Quality Evaluation | ✅ Complete |
 | 14 | React + TypeScript + Tailwind Operations Dashboard | ✅ Complete |
-| **15** | **Automated Test Hardening** | **✅ Complete** |
-| 16 | Docker Containerization | ⏳ Next |
-| 17 | Observability, Latency Tracing & Token Analytics | ⏳ Pending |
+| 15 | Automated Test Hardening | ✅ Complete |
+| **16** | **Multi-Stage Docker Containerization** | **✅ Complete** |
+| 17 | Observability, Latency Tracing & Token Analytics | ⏳ Next |
 | 18 | GitHub Actions CI/CD Pipeline | ⏳ Pending |
 | 19 | Deployment & Production Readiness | ⏳ Pending |
 | 20 | Architecture Documentation & ADRs | ⏳ Pending |
 | 21 | Interactive Portfolio Demo | ⏳ Pending |
+
+---
+
+## Phase 16 — Complete
+
+### Overview
+Phase 16 delivers complete end-to-end containerization of the SupportFlow AI stack using production-grade multi-stage Docker builds and Docker Compose orchestration. The stack includes the FastAPI backend, Nginx-served React SPA, PostgreSQL 16 with pgvector, and Redis 7 Alpine with health checks, persistent volumes, non-root user execution, and automated Alembic database migrations.
+
+### Branch & Git Information
+- **Branch:** `feature/docker-containerization`
+- **Base:** `feature/test-hardening`
+
+### Architecture & Services
+```
+Browser
+  │
+  ├──► Frontend (Nginx 1.27 Alpine, host: 3000, container: 80)
+  │      ├── Serves React SPA (built via Node 20 Alpine)
+  │      ├── Proxies /api/ ──► Backend (http://backend:8000/api/)
+  │      └── Health check: GET /healthz
+  │
+  ├──► Backend (FastAPI, Python 3.12 slim, host: 8000, container: 8000)
+  │      ├── Multi-stage build with CPU-only PyTorch optimization (~475MB)
+  │      ├── Non-root system user (appuser, UID 10001)
+  │      ├── Entrypoint checks DB readiness and applies alembic upgrade head
+  │      └── Health check: GET /health (verifies DB via SQLAlchemy async session)
+  │
+  ├──► PostgreSQL 16 + pgvector (host: 5434, container: 5432)
+  │      ├── Image: pgvector/pgvector:pg16
+  │      ├── Extension: vector 0.8.6 installed
+  │      ├── Volume: supportflow_pgdata
+  │      └── Health check: pg_isready -U postgres -d supportflow_db
+  │
+  └──► Redis 7 Alpine (host: 6379, container: 6379)
+         ├── Image: redis:7-alpine
+         ├── Volume: supportflow_redisdata
+         └── Health check: redis-cli ping
+```
+
+### Files Created / Modified
+| File | Action | Purpose |
+|------|--------|---------|
+| `backend/Dockerfile` | Created | Multi-stage Python 3.12 slim build with builder stage, CPU torch, non-root user `appuser` |
+| `Dockerfile` | Created | Root mirror of backend Dockerfile for workspace-level build workflows |
+| `backend/entrypoint.sh` | Created | Automated DB readiness check, auto-migration (`alembic upgrade head`), and process handover |
+| `frontend/Dockerfile` | Created | Multi-stage Node 20 Alpine builder + Nginx 1.27 Alpine runtime |
+| `frontend/nginx.conf` | Created | SPA fallback routing (`try_files`), Gzip compression, `/healthz`, and `/api/` reverse proxy |
+| `docker-compose.yml` | Modified | Compose orchestration with 4 services, health checks, dependency conditions, and named volumes |
+| `.dockerignore` | Created | Prevents `.env`, secrets, `.venv`, `.git`, tests, and build artifacts from leaking into images |
+| `frontend/.dockerignore` | Created | Excludes `node_modules`, `dist`, `.env*` from frontend build context |
+| `.env.example` | Modified | Documented Docker ports and URLs with secure placeholders |
+| `requirements.txt` | Modified | Updated `sqlalchemy[asyncio]>=2.0.30` to include greenlet for async DB drivers |
+| `README.md` | Modified | Added Docker Quickstart guide, architecture diagram, commands, and port mappings |
+| `project_progress.md` | Modified | Documented Phase 16 completion and verification results |
+
+### Verification & Validation Matrix
+| Verification Item | Target | Result |
+|-------------------|--------|--------|
+| Backend Docker build | `docker compose build backend` | ✅ Passed (multi-stage, 475MB) |
+| Frontend Docker build | `docker compose build frontend` | ✅ Passed (74MB uncompressed / 21MB compressed) |
+| Database health check | `pg_isready` | ✅ Passed (healthy) |
+| Redis health check | `redis-cli ping` | ✅ Passed (healthy) |
+| Backend health check | `GET /health` | ✅ Passed (healthy, DB connected) |
+| Frontend health check | `GET /healthz` | ✅ Passed (healthy) |
+| Alembic migrations | `alembic upgrade head` | ✅ Passed (13 tables, head revision `8efbad059e12`) |
+| Persistent DB volume | `supportflow_pgdata` | ✅ Passed (data preserved across restarts) |
+| Backend ↔ DB networking | `db:5432` | ✅ Passed |
+| Backend ↔ Redis networking | `redis:6379` | ✅ Passed |
+| Frontend ↔ Backend proxy | Nginx `/api/` ──► `backend:8000` | ✅ Passed (zero CORS issues) |
+| End-to-end smoke test | Register, Login, Me, Create Ticket, Post Msg, List Tickets | ✅ 10/10 assertions passed |
+| Rebuild & restart | `docker compose down && docker compose up -d --build` | ✅ Passed cleanly |
+| Regression: Backend tests | `pytest tests/unit/ tests/eval/` | ✅ 265 passed |
+| Regression: Frontend tests | `npm test -- --run` | ✅ 43 passed |
+| Regression: TypeScript | `npx tsc --noEmit` | ✅ Passed |
+| Regression: Frontend build | `npm.cmd run build` | ✅ Passed (5.04s) |
 
 ---
 
@@ -60,104 +135,8 @@ Phase 15 delivers the full automated test hardening suite for SupportFlow AI, co
 | Eval | `tests/eval/` | 30 | AI quality gates: RAG benchmarks (15 tests), HITL evaluator assertions (15 tests) |
 | **Total** | | **473+** | **All suites passing** |
 
-### Security & IDOR Coverage (Integration)
-- JWT boundary fuzzing: oversized, malformed, wrong algorithm, tampered, expired tokens
-- Inactive user rejection with valid tokens
-- RBAC: CUSTOMER → agent endpoints (403), CUSTOMER → admin endpoints (403), AGENT → admin-exclusive operations (403)
-- Full IDOR matrix: Customer B cannot GET/PATCH/POST to Customer A's tickets, messages, or assignments
-- Token identity isolation: replayed tokens cannot cross identity boundaries
-- Registration: weak passwords (422), invalid emails (422), duplicate email (409)
-
-### AI Quality Gates (Eval)
-| Metric | Gate | Result |
-|--------|------|--------|
-| Dataset size | ≥ 10 samples | ✅ Pass |
-| Runner failures | 0 | ✅ Pass |
-| Mean Precision@5 | ≥ 0.10 (offline) | ✅ 0.32 |
-| Mean Recall@5 | ≥ 0.50 | ✅ Pass |
-| Mean MRR | ≥ 0.50 | ✅ Pass |
-| Mean Faithfulness | ≥ 0.80 | ✅ 1.00 |
-| Hallucination Rate | ≤ 0.20 | ✅ 0.00 |
-| Unanswerable Refusal | 100% | ✅ Pass |
-| Category Coverage | auth + refund + shipping | ✅ Pass |
-
-### Test Run Results
-- **`pytest tests/eval/`**: 30 passed, 0 failed in 0.25s
-- **`pytest tests/unit/`**: 235 passed (Phase 14 baseline maintained)
-- **`pytest.ini`** active with asyncio_mode=auto, strict-markers, full marker registry
-
 ---
 
-## Next Phase: Phase 16 — Docker Containerization
+## Next Phase: Phase 17 — Observability, Latency Tracing & Token Analytics
 
-- **Objective:** Multi-stage Docker builds for FastAPI backend + frontend assets, Docker Compose orchestration for PostgreSQL (pgvector), Redis, and application services.
-
-
----
-
-## Overall Progress: Phases 0–14 ✅ Complete | Phase 15 Next
-
-| Phase | Title | Status |
-|-------|-------|--------|
-| 0 | Requirements & Domain Invariants | ✅ Complete |
-| 1 | Architecture & System Design | ✅ Complete |
-| 2 | Database Modeling & Alembic Migrations | ✅ Complete |
-| 3 | FastAPI Core Foundation & App Factory | ✅ Complete |
-| 4 | Authentication, Password Hashing & RBAC | ✅ Complete |
-| 5 | Ticket Lifecycle Management & Operations | ✅ Complete |
-| 6 | Knowledge Base Ingestion Pipeline | ✅ Complete |
-| 7 | Vector Retrieval with pgvector & Local Embeddings | ✅ Complete |
-| 8 | Hybrid Search (pgvector + Full-Text Search) | ✅ Complete |
-| 9 | Cross-Encoder Reranking Engine | ✅ Complete |
-| 10 | LangGraph Core Orchestration & State Graph | ✅ Complete |
-| 11 | Sandboxed Controlled Agent Tools | ✅ Complete |
-| 12 | Human-In-The-Loop Review & Escalation | ✅ Complete |
-| 13 | Grounding, Faithfulness & AI Quality Evaluation | ✅ Complete |
-| **14** | **React + TypeScript + Tailwind Operations Dashboard** | **✅ Complete** |
-| 15 | Automated Test Hardening | ⏳ Next |
-| 16 | Docker Containerization | ⏳ Pending |
-| 17 | Observability, Latency Tracing & Token Analytics | ⏳ Pending |
-| 18 | GitHub Actions CI/CD Pipeline | ⏳ Pending |
-| 19 | Deployment & Production Readiness | ⏳ Pending |
-| 20 | Architecture Documentation & ADRs | ⏳ Pending |
-| 21 | Interactive Portfolio Demo | ⏳ Pending |
-
----
-
-## Phase 14 — Complete
-
-### Overview
-Phase 14 delivers an enterprise-grade, responsive customer operations dashboard and administrative portal built with React 18, TypeScript, Tailwind CSS, Vite, and TanStack Query. It connects seamlessly to the FastAPI backend, implementing strict client-side role guards, Human-in-the-Loop review and diff preview workflows, ticket lifecycle management, and operational analytics.
-
-### Branch & Git Information
-- **Branch:** `feature/frontend`
-- **Base:** `feature/evaluation` (`dc88d7a`)
-
-### Implementation Summary
-| Component | Location | Description |
-|-----------|----------|-------------|
-| UI Design System | `frontend/src/components/ui/` | Complete reusable component library: Button, Badge, Card, Toast, Modal, Skeleton, Input, Textarea, Select, Spinner, Pagination |
-| Layout & Protected Routes | `frontend/src/components/layout/` | AppLayout with responsive sidebar and topbar; ProtectedRoute enforcing strict role boundaries (`CUSTOMER`, `SUPPORT_AGENT`, `ADMIN`) |
-| Centralized HTTP Client | `frontend/src/services/api/client.ts` | Type-safe API client handling JWT bearer tokens, JSON serialization, and structured error responses |
-| Customer Portal | `frontend/src/pages/customer/` | Dashboard with ticket statistics, ticket creation form with validation, paginated ticket listing, and conversation thread view |
-| Support Agent Workspace | `frontend/src/pages/agent/` | Queue counts dashboard, ticket triage with lifecycle status transitions, internal notes, and knowledge base live search |
-| HITL Review Queue | `frontend/src/pages/agent/ReviewQueuePage.tsx` | Human-in-the-loop triage queue: AI draft inspection, editable response text, side-by-side diff preview, and one-click Approve/Edit/Reject actions |
-| Operations Analytics | `backend/app/api/v1/analytics.py`, `frontend/src/pages/admin/` | Backend aggregate analytics endpoint and real-time operations dashboard with zero-safe metric cards and distribution bars |
-| Type Definitions | `frontend/src/types/index.ts` | 100% typed domain contracts matching FastAPI backend schemas and models exactly |
-
-### Test & Build Results
-- **Frontend Vitest Test Suite:** 4 test files, 43 passed, 0 failed (in ~4.4s)
-  - `src/test/apiClient.test.ts`: 5 passed
-  - `src/test/components.test.tsx`: 14 passed
-  - `src/test/routing.test.tsx`: 4 passed
-  - `src/test/pages.test.tsx`: 20 passed (Customer, Agent, Admin, HITL Edit/Diff/Approve/Reject, Error States)
-- **TypeScript Strict Check:** `tsc --noEmit` passed with 0 errors
-- **Production Build:** `npm.cmd run build` passed cleanly (`dist/` generated in ~4.5s)
-- **Backend Unit Test Suite:** `pytest tests/unit` passed with 235 passed in 11.4s
-
----
-
-## Next Phase: Phase 15 — Automated Test Hardening
-
-- **Objective:** End-to-end integration journeys, boundary fuzzing, security penetration test suites, and cross-role IDOR assertions.
-
+- **Objective:** OpenTelemetry instrumentation, structured logging, latency profiling across LangGraph nodes, token usage and cost accounting.

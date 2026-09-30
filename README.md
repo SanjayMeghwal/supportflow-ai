@@ -79,6 +79,75 @@ pytest tests/unit/test_evaluation_dataset.py tests/unit/test_evaluation_metrics.
 
 ---
 
+## Docker Containerization & Local Stack (Phase 16)
+
+SupportFlow AI is fully containerized using multi-stage Docker builds and Docker Compose, providing a reproducible, production-like development environment.
+
+### Services Architecture
+
+```
+Browser
+  │
+  ├──► Frontend (Nginx 1.27 Alpine, port 3000)
+  │      ├── Serves React SPA (built with Vite + Node 20)
+  │      └── Reverse proxies /api/ ──► Backend (FastAPI, port 8000)
+  │
+  ├──► Backend (Python 3.12 slim, port 8000)
+  │      ├── Non-root runtime (`appuser`, UID 10001)
+  │      ├── Connects to PostgreSQL (`db:5432`)
+  │      ├── Connects to Redis (`redis:6379`)
+  │      └── Auto-runs Alembic migrations on startup (`entrypoint.sh`)
+  │
+  ├──► PostgreSQL 16 + pgvector (port 5434 -> 5432)
+  │      └── Persistent named volume: `supportflow_pgdata`
+  │
+  └──► Redis 7 Alpine (port 6379)
+         └── Persistent named volume: `supportflow_redisdata`
+```
+
+### Quickstart Commands
+
+```bash
+# Build all container images
+docker compose build
+
+# Start the full stack in background
+docker compose up -d
+
+# Verify service status and health checks
+docker compose ps
+
+# View backend logs (including startup migrations)
+docker compose logs -f backend
+
+# View frontend web server logs
+docker compose logs -f frontend
+
+# Stop the stack gracefully (preserves database data)
+docker compose down
+
+# Controlled rebuild and restart
+docker compose up -d --build
+```
+
+### Port Mapping Summary
+
+| Service | Internal Port | Host Port | Purpose |
+|---|---|---|---|
+| **frontend** | 80 | `3000` | React Operations Dashboard & Nginx API proxy |
+| **backend** | 8000 | `8000` | FastAPI application, Swagger docs (`/docs`), Healthcheck (`/health`) |
+| **db** | 5432 | `5434` | PostgreSQL 16 with pgvector extension |
+| **redis** | 6379 | `6379` | Redis cache and session state |
+
+### Health Checks
+
+- **PostgreSQL:** Native `pg_isready -U postgres -d supportflow_db`
+- **Redis:** Native `redis-cli ping`
+- **Backend:** HTTP `GET /health` validating DB connectivity via SQLAlchemy async session
+- **Frontend:** HTTP `GET /healthz` verifying Nginx static server readiness
+
+---
+
 ## Architectural Decisions
 
 Detailed Architecture Decision Records (ADRs) are documented in [`docs/decisions/`](docs/decisions/):
@@ -89,3 +158,4 @@ Detailed Architecture Decision Records (ADRs) are documented in [`docs/decisions
 - **ADR-009:** Bounded AI Tools
 - **ADR-010:** Human-In-The-Loop Review and Escalation
 - **ADR-011:** AI Evaluation, Grounding, and Faithfulness Verification
+
