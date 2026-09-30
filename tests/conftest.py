@@ -15,7 +15,8 @@ from backend.app.core.config import settings
 from backend.app.core.database import get_db
 from backend.app.core.security import create_access_token, hash_password
 from backend.app.main import app
-from backend.app.models.user import Customer, User, UserRole
+from backend.app.models.base import Base
+from backend.app.models import *  # Ensure all models are registered in Base.metadata
 
 # Test engine targeting the dedicated, isolated test database (supportflow_test_db).
 # NullPool prevents cross-loop connection reuse issues on Windows/asyncpg.
@@ -33,6 +34,14 @@ TestAsyncSessionLocal = async_sessionmaker(
     autoflush=False,
     expire_on_commit=False,
 )
+
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def prepare_test_db():
+    """Ensure all database tables from Base.metadata exist in the test database."""
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
 
 
 async def override_get_db() -> AsyncGenerator[AsyncSession, None]:

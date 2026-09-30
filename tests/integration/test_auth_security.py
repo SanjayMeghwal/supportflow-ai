@@ -56,11 +56,11 @@ def _bearer(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def _register_user(client: AsyncClient, *, email: str, password: str, role: str = "CUSTOMER") -> dict:
+async def _register_user(client: AsyncClient, *, email: str, password: str, role: str = "CUSTOMER", full_name: str = "Test User") -> dict:
     """Register a new user via POST /api/v1/auth/register."""
     resp = await client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": password, "role": role},
+        json={"email": email, "password": password, "full_name": full_name},
     )
     return resp
 

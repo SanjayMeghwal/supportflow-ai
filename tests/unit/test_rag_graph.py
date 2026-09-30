@@ -339,8 +339,8 @@ async def test_full_rag_graph_with_tool_call_execution():
     call_count = {"n": 0}
 
     class SequentialMockLLM(MockLLMService):
-        async def generate(self, messages, *, temperature=0.0, max_tokens=1024):
-            await super().generate(messages, temperature=temperature, max_tokens=max_tokens)
+        async def generate(self, messages, *, temperature=0.0, max_tokens=1024, operation="rag_synthesis"):
+            await super().generate(messages, temperature=temperature, max_tokens=max_tokens, operation=operation)
             call_count["n"] += 1
             if call_count["n"] == 1:
                 return tool_call_json

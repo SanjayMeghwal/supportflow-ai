@@ -32,6 +32,8 @@ from backend.app.models.ai import (
     ReviewStatus,
 )
 
+from backend.app.models.analytics import LLMAnalyticsRecord
+
 __all__ = [
     "Base",
     "TimestampMixin",
@@ -61,4 +63,5 @@ __all__ = [
     "ReviewAction",
     "ReviewStatus",
     "AuditLog",
+    "LLMAnalyticsRecord",
 ]

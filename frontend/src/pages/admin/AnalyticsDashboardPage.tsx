@@ -1,10 +1,9 @@
 /**
  * Admin Analytics Dashboard — /admin/analytics
- * Operational metrics and trends for administrators.
- * Renders only the fields that the backend AnalyticsSummaryResponse actually returns.
+ * Operational metrics, system observability, request latency percentiles, and LLM token analytics.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { analyticsApi } from "@/services/api";
 import {
@@ -15,7 +14,11 @@ import {
   Badge,
 } from "@/components/ui";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { AnalyticsSummary } from "@/types";
+import {
+  AnalyticsSummary,
+  LLMAnalyticsSummary,
+  ObservabilityOverview,
+} from "@/types";
 import {
   Ticket,
   CheckCircle2,
@@ -24,6 +27,11 @@ import {
   Bot,
   XCircle,
   BarChart3,
+  Activity,
+  Zap,
+  Clock,
+  Coins,
+  Cpu,
 } from "lucide-react";
 
 interface MetricCardProps {
@@ -86,34 +94,201 @@ const BreakdownRow: React.FC<{
 };
 
 export const AnalyticsDashboardPage: React.FC = () => {
-  const { data, isLoading, isError } = useQuery<AnalyticsSummary>({
+  const [period, setPeriod] = useState<string>("24h");
+
+  // Operational metrics
+  const {
+    data: opsData,
+    isLoading: isOpsLoading,
+    isError: isOpsError,
+  } = useQuery<AnalyticsSummary>({
     queryKey: ["analytics", "summary"],
     queryFn: () => analyticsApi.getSummary(),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
 
-  const totalTickets = data?.total_tickets ?? 0;
-  const totalReviews = data?.total_reviews ?? 0;
+  // System Observability Overview
+  const {
+    data: obsData,
+    isLoading: isObsLoading,
+  } = useQuery<ObservabilityOverview>({
+    queryKey: ["analytics", "observability", "overview"],
+    queryFn: () => analyticsApi.getObservabilityOverview(),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+
+  // LLM Token Analytics
+  const {
+    data: llmData,
+    isLoading: isLlmLoading,
+  } = useQuery<LLMAnalyticsSummary>({
+    queryKey: ["analytics", "observability", "llm", period],
+    queryFn: () => analyticsApi.getLLMAnalytics(period),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const totalTickets = opsData?.total_tickets ?? 0;
+  const totalReviews = opsData?.total_reviews ?? 0;
 
   return (
     <div className="px-6 py-8 max-w-6xl mx-auto">
       <PageHeader
         title="Analytics Dashboard"
-        description="Real-time operational metrics for your support operations."
+        description="Real-time operational metrics, system observability, and AI token analytics."
         actions={
-          <Badge variant="secondary" className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Live
-          </Badge>
+          <div className="flex items-center gap-2">
+            <div className="flex bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
+              {["1h", "24h", "7d", "30d"].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
+                    period === p
+                      ? "bg-white text-slate-900 shadow-sm font-semibold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <Badge variant="secondary" className="flex items-center gap-1.5 ml-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live
+            </Badge>
+          </div>
         }
       />
 
-      {isError && (
+      {isOpsError && (
         <Alert variant="error" className="mb-6">
           Failed to load analytics. Please refresh.
         </Alert>
       )}
+
+      {/* Observability & System Latency */}
+      <div className="mb-8">
+        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+          System Observability & Request Latencies
+        </h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {isObsLoading ? (
+            <>
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
+            </>
+          ) : (
+            <>
+              <MetricCard
+                label="Total HTTP Requests"
+                value={obsData?.requests.total_requests ?? 0}
+                subLabel={`Error rate: ${((obsData?.requests.error_rate ?? 0) * 100).toFixed(1)}%`}
+                icon={<Activity className="w-5 h-5 text-indigo-600" />}
+                bg="bg-indigo-50"
+              />
+              <MetricCard
+                label="p50 Latency"
+                value={`${obsData?.requests.p50_latency_ms ?? 0} ms`}
+                subLabel="Median response time"
+                icon={<Clock className="w-5 h-5 text-emerald-600" />}
+                bg="bg-emerald-50"
+              />
+              <MetricCard
+                label="p95 Latency"
+                value={`${obsData?.requests.p95_latency_ms ?? 0} ms`}
+                subLabel="95th percentile response time"
+                icon={<Zap className="w-5 h-5 text-amber-600" />}
+                bg="bg-amber-50"
+              />
+              <MetricCard
+                label="p99 Latency"
+                value={`${obsData?.requests.p99_latency_ms ?? 0} ms`}
+                subLabel="99th percentile response time"
+                icon={<TrendingUp className="w-5 h-5 text-rose-600" />}
+                bg="bg-rose-50"
+              />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* AI Token & Model Telemetry */}
+      <div className="mb-8">
+        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+          AI Token Telemetry & LLM Analytics ({period})
+        </h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {isLlmLoading ? (
+            <>
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
+            </>
+          ) : (
+            <>
+              <MetricCard
+                label="Total LLM Calls"
+                value={llmData?.total_calls ?? 0}
+                subLabel={`Success: ${llmData?.success_count ?? 0} | Failures: ${llmData?.failure_count ?? 0}`}
+                icon={<Cpu className="w-5 h-5 text-violet-600" />}
+                bg="bg-violet-50"
+              />
+              <MetricCard
+                label="Total Tokens Consumed"
+                value={(llmData?.tokens.total ?? 0).toLocaleString()}
+                subLabel={`Prompt: ${(llmData?.tokens.prompt ?? 0).toLocaleString()} | Completion: ${(llmData?.tokens.completion ?? 0).toLocaleString()}`}
+                icon={<Coins className="w-5 h-5 text-amber-600" />}
+                bg="bg-amber-50"
+              />
+              <MetricCard
+                label="Avg. LLM Latency"
+                value={`${llmData?.avg_latency_ms ?? 0} ms`}
+                subLabel="Per inference completion"
+                icon={<Clock className="w-5 h-5 text-blue-600" />}
+                bg="bg-blue-50"
+              />
+              <MetricCard
+                label="LLM Error Rate"
+                value={`${((llmData?.error_rate ?? 0) * 100).toFixed(1)}%`}
+                subLabel="Provider failure rate"
+                icon={<XCircle className="w-5 h-5 text-rose-600" />}
+                bg="bg-rose-50"
+              />
+            </>
+          )}
+        </div>
+
+        {/* Model Usage Breakdown */}
+        {!isLlmLoading && llmData?.models && Object.keys(llmData.models).length > 0 && (
+          <Card className="mb-6">
+            <CardContent className="pt-5">
+              <h3 className="text-sm font-semibold text-slate-800 mb-3">
+                Token Consumption by Model
+              </h3>
+              <div className="space-y-3">
+                {Object.entries(llmData.models).map(([modelName, stat]) => (
+                  <div key={modelName} className="flex items-center justify-between text-sm py-1 border-b border-slate-100 last:border-0">
+                    <span className="font-mono text-xs text-slate-700 font-medium">
+                      {modelName}
+                    </span>
+                    <div className="flex items-center gap-6 text-xs text-slate-600">
+                      <span><strong>{stat.calls}</strong> calls</span>
+                      <span><strong>{stat.tokens.toLocaleString()}</strong> tokens</span>
+                      <span><strong>{stat.avg_latency_ms}</strong> ms avg</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Ticket overview */}
       <div className="mb-2">
@@ -121,7 +296,7 @@ export const AnalyticsDashboardPage: React.FC = () => {
           Ticket Overview
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {isLoading ? (
+          {isOpsLoading ? (
             <>
               <CardSkeleton />
               <CardSkeleton />
@@ -132,25 +307,25 @@ export const AnalyticsDashboardPage: React.FC = () => {
             <>
               <MetricCard
                 label="Total Tickets"
-                value={data?.total_tickets ?? "—"}
+                value={opsData?.total_tickets ?? "—"}
                 icon={<Ticket className="w-5 h-5 text-sky-600" />}
                 bg="bg-sky-50"
               />
               <MetricCard
                 label="Open Tickets"
-                value={data?.open_tickets ?? "—"}
+                value={opsData?.open_tickets ?? "—"}
                 icon={<TrendingUp className="w-5 h-5 text-amber-600" />}
                 bg="bg-amber-50"
               />
               <MetricCard
                 label="Resolved"
-                value={data?.resolved_tickets ?? "—"}
+                value={opsData?.resolved_tickets ?? "—"}
                 icon={<CheckCircle2 className="w-5 h-5 text-emerald-600" />}
                 bg="bg-emerald-50"
               />
               <MetricCard
                 label="Closed"
-                value={data?.closed_tickets ?? "—"}
+                value={opsData?.closed_tickets ?? "—"}
                 icon={<XCircle className="w-5 h-5 text-slate-500" />}
                 bg="bg-slate-100"
               />
@@ -165,7 +340,7 @@ export const AnalyticsDashboardPage: React.FC = () => {
           AI & Review Queue
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {isLoading ? (
+          {isOpsLoading ? (
             <>
               <CardSkeleton />
               <CardSkeleton />
@@ -176,28 +351,28 @@ export const AnalyticsDashboardPage: React.FC = () => {
             <>
               <MetricCard
                 label="Total AI Runs"
-                value={data?.total_ai_runs ?? "—"}
+                value={opsData?.total_ai_runs ?? "—"}
                 subLabel="Agent orchestration executions"
                 icon={<Bot className="w-5 h-5 text-brand-600" />}
                 bg="bg-brand-50"
               />
               <MetricCard
                 label="Avg. Confidence"
-                value={formatPct(data?.average_confidence)}
+                value={formatPct(opsData?.average_confidence)}
                 subLabel="Across AI responses"
                 icon={<BarChart3 className="w-5 h-5 text-purple-600" />}
                 bg="bg-purple-50"
               />
               <MetricCard
                 label="Pending Reviews"
-                value={data?.pending_reviews ?? "—"}
+                value={opsData?.pending_reviews ?? "—"}
                 subLabel="Awaiting agent decision"
                 icon={<ClipboardList className="w-5 h-5 text-orange-600" />}
                 bg="bg-orange-50"
               />
               <MetricCard
                 label="Completed Reviews"
-                value={data?.completed_reviews ?? "—"}
+                value={opsData?.completed_reviews ?? "—"}
                 subLabel="Reviewed and actioned"
                 icon={<CheckCircle2 className="w-5 h-5 text-teal-600" />}
                 bg="bg-teal-50"
@@ -208,14 +383,14 @@ export const AnalyticsDashboardPage: React.FC = () => {
       </div>
 
       {/* Status breakdown */}
-      {!isLoading && data?.tickets_by_status && Object.keys(data.tickets_by_status).length > 0 && (
+      {!isOpsLoading && opsData?.tickets_by_status && Object.keys(opsData.tickets_by_status).length > 0 && (
         <div className="mb-6">
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
             Tickets by Status
           </h2>
           <Card>
             <CardContent className="pt-5 space-y-3">
-              {Object.entries(data.tickets_by_status)
+              {Object.entries(opsData.tickets_by_status)
                 .sort(([, a], [, b]) => b - a)
                 .map(([status, count]) => (
                   <BreakdownRow
@@ -232,14 +407,14 @@ export const AnalyticsDashboardPage: React.FC = () => {
       )}
 
       {/* Category breakdown */}
-      {!isLoading && data?.tickets_by_category && Object.keys(data.tickets_by_category).length > 0 && (
+      {!isOpsLoading && opsData?.tickets_by_category && Object.keys(opsData.tickets_by_category).length > 0 && (
         <div className="mb-6">
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
             Tickets by Category
           </h2>
           <Card>
             <CardContent className="pt-5 space-y-3">
-              {Object.entries(data.tickets_by_category)
+              {Object.entries(opsData.tickets_by_category)
                 .sort(([, a], [, b]) => b - a)
                 .map(([category, count]) => (
                   <BreakdownRow
@@ -256,13 +431,13 @@ export const AnalyticsDashboardPage: React.FC = () => {
       )}
 
       {/* Priority breakdown */}
-      {!isLoading && data?.tickets_by_priority && Object.keys(data.tickets_by_priority).length > 0 && (
+      {!isOpsLoading && opsData?.tickets_by_priority && Object.keys(opsData.tickets_by_priority).length > 0 && (
         <div className="mb-6">
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
             Tickets by Priority
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {Object.entries(data.tickets_by_priority).map(([priority, count]) => (
+            {Object.entries(opsData.tickets_by_priority).map(([priority, count]) => (
               <Card key={priority}>
                 <CardContent className="text-center pt-5">
                   <p className="text-3xl font-bold text-slate-900">{count}</p>
@@ -277,14 +452,14 @@ export const AnalyticsDashboardPage: React.FC = () => {
       )}
 
       {/* Reviews by status */}
-      {!isLoading && data?.reviews_by_status && Object.keys(data.reviews_by_status).length > 0 && (
+      {!isOpsLoading && opsData?.reviews_by_status && Object.keys(opsData.reviews_by_status).length > 0 && (
         <div>
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
             Reviews by Status
           </h2>
           <Card>
             <CardContent className="pt-5 space-y-3">
-              {Object.entries(data.reviews_by_status)
+              {Object.entries(opsData.reviews_by_status)
                 .sort(([, a], [, b]) => b - a)
                 .map(([status, count]) => (
                   <BreakdownRow

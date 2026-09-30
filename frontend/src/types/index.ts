@@ -224,6 +224,97 @@ export interface AnalyticsSummary {
 }
 
 // ---------------------------------------------------------------------------
+// Observability & LLM Token Analytics (Phase 17)
+// ---------------------------------------------------------------------------
+
+export interface EndpointMetric {
+  count: number;
+  errors: number;
+  total_duration_ms: number;
+  avg_duration_ms: number;
+}
+
+export interface RequestMetrics {
+  total_requests: number;
+  error_count: number;
+  error_rate: number;
+  avg_latency_ms: number;
+  p50_latency_ms: number;
+  p95_latency_ms: number;
+  p99_latency_ms: number;
+  status_codes: Record<string, number>;
+  endpoint_count: number;
+  endpoints: Record<string, EndpointMetric>;
+}
+
+export interface LLMCallRecord {
+  id?: string;
+  request_id: string;
+  provider: string;
+  model: string;
+  operation: string;
+  prompt_tokens?: number | null;
+  completion_tokens?: number | null;
+  total_tokens?: number | null;
+  is_estimated: boolean;
+  latency_ms?: number | null;
+  success: boolean;
+  error_type?: string | null;
+  created_at?: string;
+}
+
+export interface ModelUsageStat {
+  calls: number;
+  tokens: number;
+  avg_latency_ms: number;
+}
+
+export interface OperationUsageStat {
+  calls: number;
+  tokens: number;
+}
+
+export interface LLMAnalyticsSummary {
+  period: {
+    start: string;
+    end: string;
+    label: string;
+  };
+  total_calls: number;
+  success_count: number;
+  failure_count: number;
+  error_rate: number;
+  tokens: {
+    prompt: number;
+    completion: number;
+    total: number;
+  };
+  avg_latency_ms: number;
+  models: Record<string, ModelUsageStat>;
+  operations: Record<string, OperationUsageStat>;
+  recent_records: LLMCallRecord[];
+}
+
+export interface ObservabilityOverview {
+  system_status: string;
+  requests: RequestMetrics;
+  llm: {
+    total_calls: number;
+    total_tokens: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    avg_latency_ms: number;
+    p50_latency_ms: number;
+    p95_latency_ms: number;
+    success_count: number;
+    failure_count: number;
+    error_rate: number;
+    models: Record<string, { calls: number; tokens: number; total_ms: number; avg_latency_ms: number }>;
+  };
+  recent_traces_count: number;
+}
+
+// ---------------------------------------------------------------------------
 // Knowledge Base
 // ---------------------------------------------------------------------------
 

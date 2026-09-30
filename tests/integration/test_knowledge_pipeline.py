@@ -267,22 +267,21 @@ async def test_faq_ingestion_creates_documents(
 
     resp = await client.post(
         "/api/v1/knowledge/faq",
-        json={"items": faq_items},
+        json={"title": f"FAQ Test {uid}", "faqs": faq_items},
         headers=test_admin_user["headers"],
     )
     assert resp.status_code == 201, resp.text
     data = resp.json()
-    assert isinstance(data, list)
-    assert len(data) == 2
+    assert isinstance(data, dict)
+    assert data["source_type"] == "FAQ"
 
-    # Verify both FAQ documents are in DB
-    for doc_info in data:
-        doc_id = uuid.UUID(doc_info["id"])
-        db_doc = await db_session.scalar(
-            select(KnowledgeDocument).where(KnowledgeDocument.id == doc_id)
-        )
-        assert db_doc is not None
-        assert db_doc.source_type == SourceType.FAQ
+    # Verify FAQ document is in DB
+    doc_id = uuid.UUID(data["id"])
+    db_doc = await db_session.scalar(
+        select(KnowledgeDocument).where(KnowledgeDocument.id == doc_id)
+    )
+    assert db_doc is not None
+    assert db_doc.source_type == SourceType.FAQ
 
 
 # ---------------------------------------------------------------------------
@@ -320,7 +319,7 @@ async def test_raw_text_ingestion_creates_document(
     )
     assert db_doc is not None
     assert db_doc.title == title
-    assert db_doc.source_type in (SourceType.MANUAL, SourceType.PLAIN_TEXT, SourceType.MARKDOWN)
+    assert db_doc.source_type in (SourceType.TEXT, SourceType.MARKDOWN)
 
 
 # ---------------------------------------------------------------------------
@@ -505,8 +504,9 @@ async def test_inactive_document_excluded_from_search(
         headers=test_agent_user["headers"],
     )
     assert search_resp.status_code == 200
-    results = search_resp.json()
-    result_doc_ids = [r["document_id"] for r in results]
+    search_data = search_resp.json()
+    results = search_data.get("results", [])
+    result_doc_ids = [str(r["document_id"]) for r in results]
     assert doc_id not in result_doc_ids, "Inactive document should not appear in search results"
 
 
@@ -611,9 +611,9 @@ async def test_list_documents_source_type_filter(
         headers=test_admin_user["headers"],
     )
 
-    # Query filtered by PLAIN_TEXT
+    # Query filtered by TEXT
     filtered_resp = await client.get(
-        "/api/v1/knowledge?source_type=PLAIN_TEXT",
+        "/api/v1/knowledge?source_type=TEXT",
         headers=test_admin_user["headers"],
     )
     assert filtered_resp.status_code == 200
@@ -621,6 +621,6 @@ async def test_list_documents_source_type_filter(
     # All returned documents must have the specified source_type
     doc_list = docs.get("documents", docs)
     for doc in doc_list:
-        assert doc.get("source_type") in ("PLAIN_TEXT", None), (
+        assert doc.get("source_type") in ("TEXT", None), (
             f"Unexpected source_type: {doc.get('source_type')}"
         )

@@ -1,11 +1,18 @@
 from contextlib import asynccontextmanager
+import logging
 from typing import AsyncGenerator
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+
 from backend.app.api.v1.api import api_router
 from backend.app.core.config import settings
 from backend.app.core.database import engine
+from backend.app.core.logging import setup_structured_logging
+from backend.app.core.middleware import ObservabilityMiddleware
+
+# Initialize structured JSON logging
+setup_structured_logging(log_level=logging.DEBUG if settings.DEBUG else logging.INFO)
 
 
 @asynccontextmanager
@@ -29,7 +36,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS Configuration
+# 1. Observability Middleware (Request IDs, Latency Telemetry, Metrics)
+app.add_middleware(ObservabilityMiddleware)
+
+# 2. CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Adjust for production domains

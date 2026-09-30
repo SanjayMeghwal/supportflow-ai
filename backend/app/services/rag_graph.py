@@ -33,10 +33,17 @@ Security invariants:
 import json
 import re
 from typing import Any, Optional, TypedDict
+import time
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.core.tracing import (
+    PipelineTrace,
+    async_trace_span,
+    trace_buffer,
+    trace_span,
+)
 from backend.app.models.user import User
 from backend.app.schemas.tools import ToolCallRequest, ToolResult
 from backend.app.services.knowledge import KnowledgeService
@@ -328,12 +335,14 @@ def build_rag_graph(
     # -----------------------------------------------------------------------
 
     async def retrieve_step(state: AgentState) -> dict[str, Any]:
-        docs = await knowledge_service.search_reranked(
-            db=db,
-            query=state["query"],
-            top_k=state.get("top_k", 5),
-        )
-        return {"retrieved_docs": docs}
+        async with async_trace_span("retrieval") as span:
+            docs = await knowledge_service.search_reranked(
+                db=db,
+                query=state["query"],
+                top_k=state.get("top_k", 5),
+            )
+            span.metadata["retrieved_count"] = len(docs)
+            return {"retrieved_docs": docs}
 
     # -----------------------------------------------------------------------
     # Node: context_assembly
@@ -386,7 +395,13 @@ def build_rag_graph(
                 {"role": "user", "content": user_prompt},
             ]
 
-        raw_output = await llm_service.generate(messages, temperature=0.0)
+        async with async_trace_span("llm_generation") as span:
+            raw_output = await llm_service.generate(
+                messages,
+                temperature=0.0,
+                operation="rag_synthesis",
+            )
+            span.metadata["output_length"] = len(raw_output)
 
         # Check if LLM requested a tool call
         tool_call_request = None
@@ -430,11 +445,15 @@ def build_rag_graph(
             }
 
         request = state["tool_call_request"]
-        result = await dispatch_tool(
-            request,
-            current_user=current_user,
-            db=db,
-        )
+        tool_name = request.tool_name if request else "unknown"
+
+        async with async_trace_span("tool_execution", tool_name=tool_name) as span:
+            result = await dispatch_tool(
+                request,
+                current_user=current_user,
+                db=db,
+            )
+            span.metadata["success"] = result.success
 
         return {
             "tool_result": result,
@@ -472,7 +491,14 @@ def build_rag_graph(
             {"role": "user", "content": user_prompt},
         ]
 
-        raw_answer = await llm_service.generate(messages, temperature=0.0)
+        async with async_trace_span("tool_synthesis") as span:
+            raw_answer = await llm_service.generate(
+                messages,
+                temperature=0.0,
+                operation="tool_synthesis",
+            )
+            span.metadata["output_length"] = len(raw_answer)
+
         return {"answer": raw_answer}
 
     # -----------------------------------------------------------------------
@@ -504,12 +530,14 @@ def build_rag_graph(
             if top_score is not None:
                 confidence_score = float(top_score)
 
-        should_escalate, reason, run_status = check_escalation_triggers(
-            state.get("query", ""),
-            context_available=state.get("context_available", False),
-            confidence_score=confidence_score,
-            tool_result=state.get("tool_result"),
-        )
+        with trace_span("check_escalation") as span:
+            should_escalate, reason, run_status = check_escalation_triggers(
+                state.get("query", ""),
+                context_available=state.get("context_available", False),
+                confidence_score=confidence_score,
+                tool_result=state.get("tool_result"),
+            )
+            span.metadata["escalation_triggered"] = should_escalate
 
         return {
             "escalation_triggered": should_escalate,
@@ -631,5 +659,13 @@ async def run_rag_pipeline(
         "escalation_status": None,
     }
 
+    trace = PipelineTrace("rag_pipeline")
+    start_time = time.perf_counter()
     result = await graph.ainvoke(initial_state)
+    duration_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
+    trace.finish(status="SUCCESS" if result.get("is_valid", True) else "FAILED")
+    trace_buffer.record_trace(trace)
+    result["total_latency_ms"] = duration_ms
+    result["trace"] = trace.to_dict()
+
     return result
