@@ -38,6 +38,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.core.config import settings
 from backend.app.core.tracing import (
     PipelineTrace,
     async_trace_span,
@@ -173,7 +174,8 @@ def assemble_context(retrieved_docs: list[dict[str, Any]]) -> dict[str, Any]:
         score = float(doc.get("rerank_score", doc.get("score", 0.0)))
 
         context_blocks.append(
-            f"[Source {idx}]: {doc_title} (Passage {chunk_idx + 1})\n{content}"
+            f"[Source {idx}]: {doc_title} (Passage {chunk_idx + 1})\n"
+            f"<untrusted_reference_document>\n{content}\n</untrusted_reference_document>"
         )
 
         sources.append(
@@ -629,6 +631,11 @@ async def run_rag_pipeline(
     if not cleaned_query:
         raise ValueError("Query string cannot be empty or whitespace-only.")
 
+    # Bound user query length against prompt injection / cost explosion attacks
+    max_chars = settings.MAX_AI_INPUT_CHARS
+    if len(cleaned_query) > max_chars:
+        cleaned_query = cleaned_query[:max_chars]
+
     ks = knowledge_service or KnowledgeService()
     ls = llm_service or get_llm_service()
 
@@ -661,7 +668,10 @@ async def run_rag_pipeline(
 
     trace = PipelineTrace("rag_pipeline")
     start_time = time.perf_counter()
-    result = await graph.ainvoke(initial_state)
+    result = await graph.ainvoke(
+        initial_state,
+        config={"recursion_limit": settings.MAX_GRAPH_STEPS},
+    )
     duration_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
     trace.finish(status="SUCCESS" if result.get("is_valid", True) else "FAILED")
     trace_buffer.record_trace(trace)

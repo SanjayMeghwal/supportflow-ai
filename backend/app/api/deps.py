@@ -23,6 +23,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import settings
 from backend.app.core.database import get_db
+from backend.app.core.logging import log_security_event
+from backend.app.core.request_context import get_request_id
 from backend.app.core.security import decode_access_token
 from backend.app.models.user import Customer, User, UserRole
 
@@ -63,12 +65,22 @@ async def get_current_user(
     )
 
     if user_id_str is None:
+        log_security_event(
+            "authentication_failure",
+            request_id=get_request_id(),
+            details={"reason": "invalid_or_expired_token"},
+        )
         raise credentials_exception
 
     # Parse the UUID — guards against malformed sub claims
     try:
         user_id = uuid.UUID(user_id_str)
     except (ValueError, AttributeError):
+        log_security_event(
+            "authentication_failure",
+            request_id=get_request_id(),
+            details={"reason": "malformed_sub_uuid", "sub": user_id_str},
+        )
         raise credentials_exception
 
     # Fetch user from DB — this is the authoritative source for role/is_active
@@ -76,9 +88,20 @@ async def get_current_user(
     user = result.scalar_one_or_none()
 
     if user is None:
+        log_security_event(
+            "authentication_failure",
+            request_id=get_request_id(),
+            details={"reason": "user_id_not_in_db", "user_id": str(user_id)},
+        )
         raise credentials_exception
 
     if not user.is_active:
+        log_security_event(
+            "authentication_failure",
+            request_id=get_request_id(),
+            user_id=str(user.id),
+            details={"reason": "inactive_account"},
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account is inactive.",
@@ -109,6 +132,15 @@ def require_roles(*roles: UserRole):
         current_user: User = Depends(get_current_user),
     ) -> User:
         if current_user.role not in allowed:
+            log_security_event(
+                "authorization_denied",
+                request_id=get_request_id(),
+                user_id=str(current_user.id),
+                details={
+                    "user_role": current_user.role.value,
+                    "required_roles": [r.value for r in allowed],
+                },
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions.",
@@ -187,6 +219,15 @@ async def verify_resource_ownership(
         )
 
     if authenticated_customer_id != resource_customer_id:
+        log_security_event(
+            "cross_tenant_access_attempt",
+            request_id=get_request_id(),
+            user_id=str(current_user.id),
+            details={
+                "authenticated_customer_id": str(authenticated_customer_id),
+                "attempted_resource_customer_id": str(resource_customer_id),
+            },
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access forbidden: you do not own this resource.",

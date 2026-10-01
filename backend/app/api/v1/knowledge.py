@@ -1,14 +1,19 @@
 """Knowledge Base REST API endpoints for document ingestion and management."""
 
 import json
+import os
 from pathlib import Path
+import re
 from typing import Optional
 import uuid
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_user, require_admin, require_support_agent
+from backend.app.core.config import settings
 from backend.app.core.database import get_db
+from backend.app.core.logging import log_security_event
+from backend.app.core.rate_limit import rate_limit_ai, rate_limit_upload
 from backend.app.models.knowledge import KnowledgeDocument, SourceType
 from backend.app.models.user import User
 from backend.app.schemas.knowledge import (
@@ -36,8 +41,25 @@ router = APIRouter()
 knowledge_service = KnowledgeService()
 
 # Maximum allowed file size: 10 MB
-MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
-ALLOWED_EXTENSIONS = {".pdf", ".md", ".markdown", ".txt", ".text", ".json"}
+MAX_FILE_SIZE_BYTES = settings.MAX_FILE_UPLOAD_SIZE
+ALLOWED_EXTENSIONS = settings.ALLOWED_UPLOAD_EXTENSIONS | {".markdown", ".text"}
+DANGEROUS_EXTENSIONS = {
+    ".exe", ".bat", ".cmd", ".sh", ".bin", ".py", ".pyw", ".js", ".vbs",
+    ".msi", ".dll", ".so", ".com", ".scr", ".html", ".htm", ".xhtml", ".php",
+}
+
+
+def sanitize_filename(filename: Optional[str]) -> str:
+    """Sanitize user-provided filename to prevent path traversal and script injection."""
+    if not filename:
+        return "document.txt"
+    # Extract only the base name (strips directories like ../, ..\, /etc/)
+    base_name = os.path.basename(filename.strip().replace("\\", "/"))
+    # Remove null bytes and control chars
+    base_name = re.sub(r"[\x00-\x1f\x7f]", "", base_name)
+    if not base_name or base_name in (".", ".."):
+        return "document.txt"
+    return base_name
 
 
 def _document_to_response(doc: KnowledgeDocument, chunk_count: int = 0) -> KnowledgeDocumentResponse:
@@ -65,12 +87,14 @@ def _document_to_response(doc: KnowledgeDocument, chunk_count: int = 0) -> Knowl
     response_model=KnowledgeDocumentResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Upload and ingest a knowledge document file",
+    dependencies=[Depends(rate_limit_upload)],
     responses={
         400: {"description": "Invalid file format or corrupted content"},
         401: {"description": "Not authenticated"},
         403: {"description": "Forbidden — requires SUPPORT_AGENT or ADMIN role"},
         409: {"description": "Conflict — duplicate document already exists"},
         413: {"description": "Payload Too Large — file exceeds 10MB limit"},
+        429: {"description": "Too Many Requests — upload rate limit exceeded"},
     },
 )
 async def upload_document(
@@ -83,22 +107,70 @@ async def upload_document(
 ) -> KnowledgeDocumentResponse:
     """Ingest a knowledge document file into chunks for RAG.
 
-    - Validates file extension against allowed formats.
+    - Sanitizes filename to prevent path traversal.
+    - Validates file extension against allowed formats and blocks dangerous executables.
+    - Inspects MIME types and magic byte headers (e.g. %PDF- for PDF).
     - Enforces 10MB maximum upload limit.
     - Computes SHA-256 checksum and prevents duplicate ingestion.
     - Chunks content deterministically for downstream vector retrieval.
     """
-    filename = file.filename or "document.txt"
+    raw_filename = file.filename or "document.txt"
+    filename = sanitize_filename(raw_filename)
     ext = Path(filename).suffix.lower()
+
+    # Reject dangerous executable/script extensions
+    if any(filename.lower().endswith(bad) for bad in DANGEROUS_EXTENSIONS):
+        log_security_event(
+            "invalid_upload",
+            user_id=str(current_user.id),
+            details={"filename": filename, "reason": "dangerous_extension"},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Disallowed file extension '{ext}'. Executable and script files are strictly prohibited.",
+        )
+
     if ext not in ALLOWED_EXTENSIONS:
+        log_security_event(
+            "invalid_upload",
+            user_id=str(current_user.id),
+            details={"filename": filename, "reason": "unsupported_extension"},
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported file format '{ext}'. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
 
+    # Validate MIME type if provided
+    if file.content_type:
+        content_type_lower = file.content_type.lower().split(";")[0].strip()
+        dangerous_mimes = {
+            "application/x-msdownload",
+            "application/x-sh",
+            "text/html",
+            "application/javascript",
+            "text/javascript",
+            "application/x-php",
+        }
+        if content_type_lower in dangerous_mimes:
+            log_security_event(
+                "invalid_upload",
+                user_id=str(current_user.id),
+                details={"filename": filename, "content_type": file.content_type, "reason": "dangerous_mime"},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"MIME type '{file.content_type}' is not permitted for document ingestion.",
+            )
+
     # Read file content with size bounding
     content_bytes = await file.read()
     if len(content_bytes) > MAX_FILE_SIZE_BYTES:
+        log_security_event(
+            "oversized_upload",
+            user_id=str(current_user.id),
+            details={"filename": filename, "size_bytes": len(content_bytes)},
+        )
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"File exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB.",
@@ -108,6 +180,30 @@ async def upload_document(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is empty.",
         )
+
+    # Magic byte and content signature validation
+    if ext == ".pdf":
+        if not content_bytes.startswith(b"%PDF-"):
+            log_security_event(
+                "invalid_upload",
+                user_id=str(current_user.id),
+                details={"filename": filename, "reason": "invalid_pdf_signature"},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Corrupted or invalid PDF file: missing '%PDF-' header signature.",
+            )
+    elif ext in (".txt", ".md", ".markdown", ".text"):
+        if b"\x00" in content_bytes:
+            log_security_event(
+                "invalid_upload",
+                user_id=str(current_user.id),
+                details={"filename": filename, "reason": "null_bytes_in_text"},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Text file contains binary null bytes and cannot be ingested.",
+            )
 
     try:
         doc = await knowledge_service.ingest_document(

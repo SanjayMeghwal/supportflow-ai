@@ -22,6 +22,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.api.deps import get_current_user
 from backend.app.core.config import settings
 from backend.app.core.database import get_db
+from backend.app.core.logging import log_security_event
+from backend.app.core.rate_limit import rate_limit_auth
 from backend.app.core.security import create_access_token, hash_password, verify_password
 from backend.app.models.user import Customer, User, UserRole
 from backend.app.schemas.auth import (
@@ -40,9 +42,11 @@ router = APIRouter()
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new customer account",
+    dependencies=[Depends(rate_limit_auth)],
     responses={
         409: {"description": "Email address already registered"},
         422: {"description": "Validation error"},
+        429: {"description": "Too many requests — rate limit exceeded"},
     },
 )
 async def register(
@@ -88,6 +92,12 @@ async def register(
     await db.flush()
     await db.refresh(user)
 
+    log_security_event(
+        "auth_register",
+        user_id=str(user.id),
+        details={"email": user.email, "role": user.role.value},
+    )
+
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -101,8 +111,10 @@ async def register(
     "/login",
     response_model=TokenResponse,
     summary="Authenticate and receive an access token",
+    dependencies=[Depends(rate_limit_auth)],
     responses={
         401: {"description": "Invalid credentials or inactive account"},
+        429: {"description": "Too many requests — rate limit exceeded"},
     },
 )
 async def login(
@@ -131,16 +143,28 @@ async def login(
     user = result.scalar_one_or_none()
 
     if user is None:
+        log_security_event(
+            "auth_login_failure",
+            details={"email": payload.email, "reason": "user_not_found"},
+        )
         raise _invalid_credentials
 
     # Verify password against stored hash
     if not verify_password(payload.password, user.hashed_password):
+        log_security_event(
+            "auth_login_failure",
+            user_id=str(user.id),
+            details={"email": payload.email, "reason": "invalid_password"},
+        )
         raise _invalid_credentials
 
     # Reject inactive accounts after credential verification
-    # (same error to avoid confirming account existence to a bad actor
-    # who somehow obtained correct credentials)
     if not user.is_active:
+        log_security_event(
+            "auth_login_failure",
+            user_id=str(user.id),
+            details={"email": payload.email, "reason": "account_inactive"},
+        )
         raise _invalid_credentials
 
     access_token = create_access_token(
@@ -148,6 +172,12 @@ async def login(
         secret_key=settings.JWT_SECRET_KEY,
         algorithm=settings.JWT_ALGORITHM,
         expires_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+    )
+
+    log_security_event(
+        "auth_login_success",
+        user_id=str(user.id),
+        details={"email": user.email, "role": user.role.value},
     )
 
     return TokenResponse(

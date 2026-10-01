@@ -83,3 +83,45 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             )
 
         return response
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Middleware enforcing HTTP security headers and request payload size bounds."""
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        from backend.app.core.config import settings
+        from backend.app.core.request_context import get_request_id
+        from starlette.responses import JSONResponse
+
+        # 1. Bounded Request Size Check
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                length_int = int(content_length)
+                if length_int > settings.MAX_REQUEST_BODY_SIZE:
+                    return JSONResponse(
+                        status_code=413,
+                        content={
+                            "detail": f"Request entity exceeds maximum permitted size of {settings.MAX_REQUEST_BODY_SIZE} bytes.",
+                            "request_id": get_request_id() or "unknown",
+                        },
+                    )
+            except ValueError:
+                pass
+
+        # 2. Process request through chain
+        response = await call_next(request)
+
+        # 3. Apply HTTP Security Headers
+        if settings.ENABLE_SECURITY_HEADERS:
+            response.headers.setdefault("X-Content-Type-Options", "nosniff")
+            response.headers.setdefault("X-Frame-Options", "DENY")
+            response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+            response.headers.setdefault("Permissions-Policy", "geolocation=(), camera=(), microphone=(), payment=()")
+            if settings.CONTENT_SECURITY_POLICY:
+                response.headers.setdefault("Content-Security-Policy", settings.CONTENT_SECURITY_POLICY)
+            if settings.HSTS_ENABLED:
+                response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+
+        return response
+
