@@ -213,3 +213,28 @@ npm ci
 npm test
 npm run build
 ```
+
+---
+
+## Production Deployment & Readiness (Phase 20)
+
+SupportFlow AI is engineered for production deployment as an isolated, containerized stack running under Docker Compose and an optional host-level reverse proxy (Nginx, Caddy, or Traefik) terminating TLS.
+
+### Compose Environments
+
+* **Development (`docker-compose.yml`):** Exposes application and database ports (`8000`, `3000`, `5434`, `6379`) for local debugging and interactive testing.
+* **Production (`docker-compose.prod.yml`):** Implements zero-trust internal networking. PostgreSQL and Redis have **no** published host ports; the FastAPI backend is reachable only within the internal Docker bridge network (`supportflow-prod-network`). Only port `80` (and `443` if terminating inside) is published.
+
+### Application Health Probes
+
+| Endpoint | Type | Purpose | Behavior |
+|---|---|---|---|
+| `GET /health/live` | Liveness | Orchestrator process ping | Fast 200 OK without database overhead |
+| `GET /health/ready` | Readiness | Service readiness check | Verifies PostgreSQL and Redis; returns 200 or 503 |
+| `GET /health` | General | Backward-compatible status | Sanitized operational report without secret leakage |
+
+### Production Documentation
+
+* **[Production Deployment Guide](docs/deployment.md):** Complete step-by-step instructions for provisioning an Ubuntu VPS, configuring environment secrets, executing database migrations, setting up Nginx with Let's Encrypt TLS, taking database backups, and running zero-downtime updates.
+* **[Production Readiness Checklist](docs/production-readiness.md):** Comprehensive verification matrix across security, connection pooling, caching, observability, container hardening, and disaster recovery.
+

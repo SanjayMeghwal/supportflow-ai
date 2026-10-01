@@ -39,8 +39,11 @@ TestAsyncSessionLocal = async_sessionmaker(
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def prepare_test_db():
     """Ensure all database tables from Base.metadata exist in the test database."""
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as exc:
+        print(f"\n[conftest] WARNING: Test database not reachable at {settings.async_test_database_url}: {exc}")
     yield
 
 

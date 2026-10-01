@@ -44,6 +44,15 @@ class Settings(BaseSettings):
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # Database Connection Pool Configuration
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_TIMEOUT: int = 30
+    DB_POOL_RECYCLE: int = 1800
+
+    # Reverse Proxy & Client IP Trust Configuration
+    TRUST_PROXY_HEADERS: bool = True
+
     # Security & JWT Tokens
     JWT_SECRET_KEY: str = (
         "change-this-to-a-secure-random-secret-key-in-production-min-32-chars"

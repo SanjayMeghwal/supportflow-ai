@@ -144,22 +144,48 @@ class RateLimiter:
         """Reset in-memory rate limit records."""
         self._memory_limiter.reset()
 
+    async def close(self) -> None:
+        """Gracefully close Redis client connection during application shutdown."""
+        if self._redis_client is not None:
+            try:
+                await self._redis_client.aclose()
+            except Exception as exc:
+                logger.warning(f"Error closing Redis client on shutdown: {exc}")
+            finally:
+                self._redis_client = None
+
 
 # Global rate limiter instance
 limiter = RateLimiter()
 
 
 def get_client_ip(request: Request) -> str:
-    """Extract client IP address respecting reverse proxies safely."""
+    """Extract client IP address respecting trusted reverse proxies safely.
+
+    If TRUST_PROXY_HEADERS is enabled:
+    - Prioritizes X-Real-IP (set authoritatively by trusted reverse proxy like Nginx).
+    - Falls back to leftmost entry in X-Forwarded-For if X-Real-IP is absent.
+    - Falls back to socket peer IP (request.client.host).
+    If TRUST_PROXY_HEADERS is disabled:
+    - Always uses socket peer IP (request.client.host) to prevent header spoofing.
+    """
+    if not settings.TRUST_PROXY_HEADERS:
+        if request.client and request.client.host:
+            return request.client.host
+        return "127.0.0.1"
+
+    # Prioritize X-Real-IP (overwritten by reverse proxy, immune to client header spoofing)
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip and real_ip.strip():
+        return real_ip.strip()
+
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         # Take the leftmost IP (original client)
         client_ip = forwarded.split(",")[0].strip()
         if client_ip:
             return client_ip
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip.strip()
+
     if request.client and request.client.host:
         return request.client.host
     return "127.0.0.1"
