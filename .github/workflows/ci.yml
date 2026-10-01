@@ -1,0 +1,308 @@
+﻿name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - "feature/**"
+
+# Restrict default permissions to read-only
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  # ============================================================
+  # JOB 1: Backend Quality — import sanity gate
+  # ============================================================
+  backend-quality:
+    name: Backend Quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ env.PYTHON_VERSION }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ env.PYTHON_VERSION }}-
+
+      - name: Install CPU-only PyTorch (avoids CUDA wheel download)
+        run: pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install backend dependencies
+        run: pip install --no-cache-dir -r requirements.txt
+
+      - name: Verify backend imports (sanity check)
+        run: |
+          python -c "
+          from backend.app.main import app
+          from backend.app.core.config import settings
+          from backend.app.core.rate_limit import limiter
+          from backend.app.core.middleware import ObservabilityMiddleware, SecurityHeadersMiddleware
+          from backend.app.core.logging import log_security_event
+          print('All core imports resolved successfully')
+          print(f'App: {settings.APP_NAME}')
+          print(f'Environment: {settings.APP_ENV}')
+          "
+        env:
+          GROQ_API_KEY: "ci-placeholder-not-used-in-quality-check"
+          DATABASE_URL: "postgresql+asyncpg://postgres:ci_password@localhost:5432/supportflow_db"
+          REDIS_URL: "redis://localhost:6379/0"
+          JWT_SECRET_KEY: "ci-test-secret-key-min-32-chars-for-testing-only"
+
+  # ============================================================
+  # JOB 2: Backend Tests — unit + API + security + eval
+  # Requires PostgreSQL with pgvector extension + Redis
+  # ============================================================
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: supportflow_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d supportflow_test_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: "postgresql+asyncpg://postgres:ci_password@localhost:5432/supportflow_db"
+      TEST_DATABASE_URL: "postgresql+asyncpg://postgres:ci_password@localhost:5432/supportflow_test_db"
+      REDIS_URL: "redis://localhost:6379/0"
+      JWT_SECRET_KEY: "ci-test-secret-key-min-32-chars-for-testing-only"
+      GROQ_API_KEY: "ci-placeholder-not-used-in-unit-tests"
+      APP_ENV: "testing"
+      DEBUG: "false"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ env.PYTHON_VERSION }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ env.PYTHON_VERSION }}-
+
+      - name: Install CPU-only PyTorch
+        run: pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install backend dependencies
+        run: pip install --no-cache-dir -r requirements.txt
+
+      - name: Wait for PostgreSQL to be healthy
+        run: |
+          echo "Waiting for PostgreSQL..."
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U postgres && echo "PostgreSQL ready." && break
+            echo "Attempt $i/30 sleeping 2s..."
+            sleep 2
+          done
+
+      - name: Enable pgvector extension in test database
+        run: |
+          PGPASSWORD=ci_password psql -h localhost -U postgres -d supportflow_test_db \
+            -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+      - name: Run unit tests
+        run: pytest tests/unit/ -v --tb=short -p no:cacheprovider
+
+      - name: Run API tests
+        run: pytest tests/api/ -v --tb=short -p no:cacheprovider
+
+      - name: Run security tests (Phase 18)
+        run: pytest tests/security/ -v --tb=short -p no:cacheprovider
+
+      - name: Run evaluation tests
+        run: pytest tests/eval/ -v --tb=short -p no:cacheprovider
+
+  # ============================================================
+  # JOB 3: Migration Check — Alembic upgrade head validation
+  # ============================================================
+  migration-check:
+    name: Migration Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: supportflow_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d supportflow_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ env.PYTHON_VERSION }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ env.PYTHON_VERSION }}-
+
+      - name: Install CPU-only PyTorch
+        run: pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install backend dependencies
+        run: pip install --no-cache-dir -r requirements.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U postgres && break
+            sleep 2
+          done
+
+      - name: Enable pgvector extension before migrations
+        run: |
+          PGPASSWORD=ci_password psql -h localhost -U postgres -d supportflow_db \
+            -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+      - name: Run Alembic migrations (upgrade head)
+        run: alembic upgrade head
+        env:
+          ALEMBIC_DATABASE_URL: "postgresql+asyncpg://postgres:ci_password@localhost:5432/supportflow_db"
+          DATABASE_URL: "postgresql+asyncpg://postgres:ci_password@localhost:5432/supportflow_db"
+          GROQ_API_KEY: "ci-placeholder-not-used"
+          JWT_SECRET_KEY: "ci-test-secret-key-min-32-chars-for-testing-only"
+
+      - name: Verify migration head is current
+        run: alembic current
+        env:
+          ALEMBIC_DATABASE_URL: "postgresql+asyncpg://postgres:ci_password@localhost:5432/supportflow_db"
+          DATABASE_URL: "postgresql+asyncpg://postgres:ci_password@localhost:5432/supportflow_db"
+          GROQ_API_KEY: "ci-placeholder-not-used"
+          JWT_SECRET_KEY: "ci-test-secret-key-min-32-chars-for-testing-only"
+
+  # ============================================================
+  # JOB 4: Frontend CI — Vitest + TypeScript + Vite build
+  # ============================================================
+  frontend-ci:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies (deterministic)
+        run: npm ci
+
+      - name: Run Vitest test suite
+        run: npm test
+
+      - name: TypeScript type-check + Vite production build
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: ""
+
+  # ============================================================
+  # JOB 5: Docker Build — validate backend + frontend images
+  # ============================================================
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          tags: supportflow-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build frontend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: supportflow-frontend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

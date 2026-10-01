@@ -1,5 +1,7 @@
 # SupportFlow AI
 
+[![CI](https://github.com/SanjayMeghwal/supportflow-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/SanjayMeghwal/supportflow-ai/actions/workflows/ci.yml)
+
 **SupportFlow AI** is an enterprise-grade, production-oriented customer support operations platform. It demonstrates how modern backend engineering and state-of-the-art AI architecture converge to deliver grounded, secure, and auditable support automations.
 
 ---
@@ -159,3 +161,55 @@ Detailed Architecture Decision Records (ADRs) are documented in [`docs/decisions
 - **ADR-010:** Human-In-The-Loop Review and Escalation
 - **ADR-011:** AI Evaluation, Grounding, and Faithfulness Verification
 
+---
+
+## GitHub Actions CI Pipeline (Phase 19)
+
+SupportFlow AI uses a GitHub Actions CI pipeline that automatically validates the backend, frontend, migrations, security suite, and Docker builds on every push and pull request.
+
+### Workflow: `.github/workflows/ci.yml`
+
+**Triggers:**
+- Every push to `main` and `feature/**` branches
+- Every pull request targeting `main`
+
+### CI Jobs
+
+| Job | What it validates | Services required |
+|---|---|---|
+| **Backend Quality** | Core import resolution, app bootstrap sanity check | None |
+| **Backend Tests** | Unit, API, security, and evaluation test suites | PostgreSQL 16 + pgvector, Redis 7 |
+| **Migration Check** | `alembic upgrade head` applies cleanly to a fresh database | PostgreSQL 16 + pgvector |
+| **Frontend CI** | Vitest test suite + TypeScript + Vite production build | None |
+| **Docker Build** | Backend and frontend multi-stage Docker images build cleanly | None |
+
+### Required GitHub Secrets
+
+No repository secrets are required for the current CI pipeline. Safe CI-only placeholder values are used for `JWT_SECRET_KEY` and `GROQ_API_KEY` (never called in unit/API tests). If you add deployment steps in Phase 20, configure secrets such as `GROQ_API_KEY` in repository Settings → Secrets.
+
+### Reproducing CI Locally
+
+```bash
+# Backend: install dependencies
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements.txt
+
+# Backend: run all tests (requires local PostgreSQL + Redis)
+pytest -v --tb=short
+
+# Backend: run specific suites
+pytest tests/unit/ -v --tb=short
+pytest tests/api/ -v --tb=short
+pytest tests/security/ -v --tb=short
+pytest tests/eval/ -v --tb=short
+
+# Migration: validate Alembic migrations
+ALEMBIC_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5434/supportflow_db \
+  alembic upgrade head
+
+# Frontend: install, test, and build
+cd frontend
+npm ci
+npm test
+npm run build
+```
