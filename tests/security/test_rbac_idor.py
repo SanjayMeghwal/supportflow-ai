@@ -118,7 +118,7 @@ async def test_idor_customer_cannot_message_foreign_ticket(client: AsyncClient, 
 
     resp = await client.post(
         f"/api/v1/tickets/{ticket_b.id}/messages",
-        json={"body": "Injected malicious message"},
+        json={"content": "Injected malicious message"},
         headers=cust_a["headers"],
     )
     assert resp.status_code == 403

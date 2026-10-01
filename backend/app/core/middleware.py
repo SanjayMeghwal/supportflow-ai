@@ -60,6 +60,12 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Response-Time-Ms"] = str(duration_ms)
 
+        # Propagate rate limit headers if set by RateLimitDependency (persists across HTTPExceptions)
+        rate_limit_headers = getattr(request.state, "rate_limit_headers", None)
+        if rate_limit_headers:
+            for k, v in rate_limit_headers.items():
+                response.headers[k] = v
+
         # Update metrics collector
         metrics_collector.record_request(
             method=request.method,

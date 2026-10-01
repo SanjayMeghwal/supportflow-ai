@@ -222,12 +222,17 @@ class RateLimitDependency:
 
         allowed, remaining, retry_after = await limiter.check(key, limit, window_seconds=60)
 
-        # Inject rate limit headers into response
+        # Inject rate limit headers into response and preserve in request.state
         response.headers["X-RateLimit-Limit"] = str(limit)
         response.headers["X-RateLimit-Remaining"] = str(remaining)
+        request.state.rate_limit_headers = {
+            "X-RateLimit-Limit": str(limit),
+            "X-RateLimit-Remaining": str(remaining),
+        }
 
         if not allowed:
             response.headers["Retry-After"] = str(retry_after)
+            request.state.rate_limit_headers["Retry-After"] = str(retry_after)
             log_security_event(
                 "rate_limit_exceeded",
                 request_id=get_request_id(),

@@ -8,7 +8,7 @@ from unittest.mock import patch
 @pytest.mark.asyncio
 async def test_unhandled_exception_returns_safe_500_response(client: AsyncClient):
     """Verify that unhandled server exceptions do not leak stack traces, database strings, or paths."""
-    with patch("backend.app.api.v1.auth.login", side_effect=RuntimeError("Database password leaked! /var/secret/db.key")):
+    with patch("sqlalchemy.ext.asyncio.AsyncSession.execute", side_effect=RuntimeError("Database password leaked! /var/secret/db.key")):
         resp = await client.post(
             "/api/v1/auth/login",
             json={"email": "test@example.com", "password": "Password123!"},
