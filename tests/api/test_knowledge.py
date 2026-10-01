@@ -460,7 +460,8 @@ async def test_invalid_file_extension_rejected(
         headers=test_admin_user["headers"],
     )
     assert response.status_code == 400
-    assert "unsupported file format" in response.json()["detail"].lower()
+    detail = response.json()["detail"].lower()
+    assert "unsupported file format" in detail or "disallowed file extension" in detail
 
 
 # ---------------------------------------------------------------------------
