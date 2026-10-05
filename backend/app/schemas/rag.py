@@ -49,3 +49,20 @@ class RAGQueryResponse(BaseModel):
         default_factory=list,
         description="List of retrieved and reranked passages cited for this answer",
     )
+    escalation_triggered: bool = Field(
+        default=False,
+        description="True if the inquiry required escalation to human review",
+    )
+    escalation_reason: Optional[str] = Field(
+        default=None,
+        description="Reason for escalation if triggered",
+    )
+    tool_called: Optional[str] = Field(
+        default=None,
+        description="Name of bounded tool invoked during execution, if any",
+    )
+    latency_ms: Optional[float] = Field(
+        default=None,
+        description="End-to-end pipeline execution latency in milliseconds",
+    )
+

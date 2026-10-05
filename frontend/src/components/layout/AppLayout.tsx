@@ -20,6 +20,8 @@ import {
   Zap,
   PlusCircle,
   User,
+  Bot,
+  Layers,
 } from "lucide-react";
 
 interface NavItem {
@@ -51,6 +53,18 @@ const NAV_ITEMS: NavItem[] = [
     icon: <PlusCircle className="w-4 h-4" />,
     roles: ["CUSTOMER"],
   },
+  {
+    to: "/app/assistant",
+    label: "AI Support Demo",
+    icon: <Bot className="w-4 h-4 text-brand-600" />,
+    roles: ["CUSTOMER"],
+  },
+  {
+    to: "/app/architecture",
+    label: "Architecture",
+    icon: <Layers className="w-4 h-4" />,
+    roles: ["CUSTOMER"],
+  },
   // Agent items
   {
     to: "/agent",
@@ -77,6 +91,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: <BookOpen className="w-4 h-4" />,
     roles: ["SUPPORT_AGENT", "ADMIN"],
   },
+  {
+    to: "/agent/assistant",
+    label: "AI Assistant Demo",
+    icon: <Bot className="w-4 h-4 text-brand-600" />,
+    roles: ["SUPPORT_AGENT", "ADMIN"],
+  },
   // Admin-only items
   {
     to: "/admin/analytics",
@@ -84,7 +104,14 @@ const NAV_ITEMS: NavItem[] = [
     icon: <BarChart3 className="w-4 h-4" />,
     roles: ["ADMIN"],
   },
+  {
+    to: "/agent/architecture",
+    label: "Architecture",
+    icon: <Layers className="w-4 h-4" />,
+    roles: ["SUPPORT_AGENT", "ADMIN"],
+  },
 ];
+
 
 export const AppLayout: React.FC = () => {
   const { user, logout, isLoading } = useAuth();

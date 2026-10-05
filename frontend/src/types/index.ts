@@ -386,7 +386,12 @@ export interface RAGQueryResponse {
   answer: string;
   context_found: boolean;
   sources: RAGSourceItem[];
+  escalation_triggered?: boolean;
+  escalation_reason?: string | null;
+  tool_called?: string | null;
+  latency_ms?: number | null;
 }
+
 
 // ---------------------------------------------------------------------------
 // API Client & Errors

@@ -590,6 +590,7 @@ async def ask_knowledge(
             db=db,
             top_k=payload.top_k,
             knowledge_service=knowledge_service,
+            current_user=current_user,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -615,10 +616,22 @@ async def ask_knowledge(
         for s in result.get("sources", [])
     ]
 
+    tool_result = result.get("tool_result")
+    tool_name = None
+    if tool_result and hasattr(tool_result, "tool_name"):
+        tool_name = tool_result.tool_name
+    elif isinstance(tool_result, dict):
+        tool_name = tool_result.get("tool_name")
+
     return RAGQueryResponse(
         query=payload.query,
         answer=result.get("answer", ""),
         context_found=result.get("context_available", False),
         sources=sources,
+        escalation_triggered=result.get("escalation_triggered", False),
+        escalation_reason=result.get("escalation_reason"),
+        tool_called=tool_name,
+        latency_ms=result.get("total_latency_ms"),
     )
+
 

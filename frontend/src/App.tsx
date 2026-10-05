@@ -28,6 +28,10 @@ import { KnowledgeBasePage } from "@/pages/agent/KnowledgeBasePage";
 // Admin pages
 import { AnalyticsDashboardPage } from "@/pages/admin/AnalyticsDashboardPage";
 
+// Shared Demo pages
+import { AIAssistantPage } from "@/pages/shared/AIAssistantPage";
+import { ArchitecturePage } from "@/pages/shared/ArchitecturePage";
+
 export const App: React.FC = () => {
   return (
     <Routes>
@@ -48,6 +52,8 @@ export const App: React.FC = () => {
         <Route path="tickets" element={<CustomerTicketListPage />} />
         <Route path="tickets/new" element={<CreateTicketPage />} />
         <Route path="tickets/:id" element={<CustomerTicketDetailPage />} />
+        <Route path="assistant" element={<AIAssistantPage />} />
+        <Route path="architecture" element={<ArchitecturePage />} />
       </Route>
 
       {/* Agent/Admin portal — SUPPORT_AGENT + ADMIN roles */}
@@ -64,6 +70,8 @@ export const App: React.FC = () => {
         <Route path="tickets/:id" element={<AgentTicketDetailPage />} />
         <Route path="reviews" element={<ReviewQueuePage />} />
         <Route path="knowledge" element={<KnowledgeBasePage />} />
+        <Route path="assistant" element={<AIAssistantPage />} />
+        <Route path="architecture" element={<ArchitecturePage />} />
       </Route>
 
       {/* Admin-only routes */}
@@ -86,3 +94,4 @@ export const App: React.FC = () => {
     </Routes>
   );
 };
+

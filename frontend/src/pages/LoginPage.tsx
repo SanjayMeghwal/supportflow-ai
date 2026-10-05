@@ -47,25 +47,104 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const handleDemoLogin = async (demoEmail: string, demoPass: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPass);
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const user = await login({ email: demoEmail, password: demoPass });
+      if (from) {
+        navigate(from, { replace: true });
+      } else if (user.role === "CUSTOMER") {
+        navigate("/app", { replace: true });
+      } else if (user.role === "ADMIN") {
+        navigate("/admin/analytics", { replace: true });
+      } else {
+        navigate("/agent", { replace: true });
+      }
+    } catch (err) {
+      if (err instanceof APIError) {
+        setError(err.message);
+      } else {
+        setError("Unable to sign in. Please verify demo seed data is loaded.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center shadow">
-            <Zap className="w-5 h-5 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-brand-50/30 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo & Headline */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-brand-600 text-white shadow-md mb-3">
+            <Zap className="w-6 h-6" />
           </div>
-          <div>
-            <p className="text-lg font-bold text-slate-900 leading-none">SupportFlow AI</p>
-            <p className="text-xs text-slate-400">Operations Platform</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">SupportFlow AI</h1>
+          <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+            Production-oriented AI customer-support and operations platform
+          </p>
+        </div>
+
+        {/* Demo Roles Quick Login Card */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-brand-100 shadow-sm p-5 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-brand-700">
+              Interactive Portfolio Demo
+            </span>
+            <span className="text-[10px] font-medium bg-brand-50 text-brand-600 px-2 py-0.5 rounded-full border border-brand-200">
+              Real JWT + RBAC
+            </span>
+          </div>
+          <p className="text-xs text-slate-600 mb-3">
+            Select a demo role to authenticate via standard JWT credentials:
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              id="demo-login-customer"
+              type="button"
+              disabled={isLoading}
+              onClick={() => handleDemoLogin("demo.customer@example.com", "DemoCustomer123!")}
+              className="flex flex-col items-center text-center p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-brand-50 hover:border-brand-300 transition-all text-xs group"
+            >
+              <span className="font-semibold text-slate-800 group-hover:text-brand-700">Customer</span>
+              <span className="text-[10px] text-slate-500 mt-0.5">Alice Johnson</span>
+              <span className="text-[9px] text-brand-600 font-mono mt-1">/app</span>
+            </button>
+            <button
+              id="demo-login-agent"
+              type="button"
+              disabled={isLoading}
+              onClick={() => handleDemoLogin("demo.agent@example.com", "DemoAgent123!")}
+              className="flex flex-col items-center text-center p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-brand-50 hover:border-brand-300 transition-all text-xs group"
+            >
+              <span className="font-semibold text-slate-800 group-hover:text-brand-700">Agent</span>
+              <span className="text-[10px] text-slate-500 mt-0.5">Triage & HITL</span>
+              <span className="text-[9px] text-brand-600 font-mono mt-1">/agent</span>
+            </button>
+            <button
+              id="demo-login-admin"
+              type="button"
+              disabled={isLoading}
+              onClick={() => handleDemoLogin("demo.admin@example.com", "DemoAdmin123!")}
+              className="flex flex-col items-center text-center p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-brand-50 hover:border-brand-300 transition-all text-xs group"
+            >
+              <span className="font-semibold text-slate-800 group-hover:text-brand-700">Admin</span>
+              <span className="text-[10px] text-slate-500 mt-0.5">Metrics & Tokens</span>
+              <span className="text-[9px] text-brand-600 font-mono mt-1">/admin</span>
+            </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-          <div className="mb-6">
-            <h1 className="text-xl font-bold text-slate-900">Sign in</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Enter your credentials to access your account.
+        {/* Standard Credentials Sign In */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-7">
+          <div className="mb-5">
+            <h2 className="text-base font-bold text-slate-900">Sign in with credentials</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Enter email and password to test manual authentication.
             </p>
           </div>
 
@@ -107,13 +186,13 @@ export const LoginPage: React.FC = () => {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-500">
+          <p className="mt-5 text-center text-xs text-slate-500">
             Don't have an account?{" "}
             <Link
               to="/register"
               className="font-medium text-brand-600 hover:text-brand-700"
             >
-              Create account
+              Create customer account
             </Link>
           </p>
         </div>
@@ -121,3 +200,4 @@ export const LoginPage: React.FC = () => {
     </div>
   );
 };
+
